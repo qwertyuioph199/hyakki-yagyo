@@ -1,5 +1,5 @@
 import { buildAtlas, type AtlasEntry } from '../engine/atlas';
-import { GameLoop, TICK_DT } from '../engine/loop';
+import { GameLoop, TICK_DT, type LoopHooks } from '../engine/loop';
 import { Pool } from '../engine/pool';
 import { Renderer } from '../engine/renderer';
 import { Rng } from '../engine/rng';
@@ -121,7 +121,7 @@ export function startStress(canvas: HTMLCanvasElement, uiRoot: HTMLElement): voi
   let lastFrameStart = performance.now();
   let t = 0;
 
-  const hooks = {
+  const hooks: LoopHooks = {
     tick() {
       const t0 = performance.now();
       t += TICK_DT;
