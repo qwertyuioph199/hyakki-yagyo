@@ -1,0 +1,21 @@
+{
+  "name": "hyakki-yagyo",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "HYAKKI YAGYO - a survivors-like where an onmyoji survives the yokai night parade until dawn. Zero runtime dependencies.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "bot": "vitest run --config vitest.bot.config.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^3.1.4"
+  }
+}
