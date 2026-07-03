@@ -436,6 +436,44 @@ export const SPRITES: readonly AtlasEntry[] = [
     ctx.fillStyle = PAL.gold;
     ctx.fillRect(5, h - 9, w - 10, 4);
   }),
+  enemy('enemy_yukinko', 16, 18, (ctx, f, w, h) => {
+    const bob = f;
+    // tiny snow child: white round body, straw coat triangle
+    blob(ctx, w / 2, h / 2 + 1 + bob, 5.5, PAL.white);
+    ctx.fillStyle = PAL.lanternDeep;
+    ctx.beginPath();
+    ctx.moveTo(w / 2 - 6, h - 3);
+    ctx.lineTo(w / 2, 5 + bob);
+    ctx.lineTo(w / 2 + 6, h - 3);
+    ctx.closePath();
+    ctx.fill();
+    blob(ctx, w / 2, 5 + bob, 4, PAL.white);
+    eyes(ctx, w / 2, 5 + bob, 2);
+  }),
+  enemy('boss_yukionna', 36, 46, (ctx, f, w, h) => {
+    const sway = f === 0 ? -1 : 1;
+    // long white robe fading like mist
+    ctx.fillStyle = PAL.white;
+    ctx.beginPath();
+    ctx.moveTo(w / 2 - 8 + sway, 8);
+    ctx.lineTo(w / 2 + 8 + sway, 8);
+    ctx.lineTo(w / 2 + 12, h - 6);
+    ctx.quadraticCurveTo(w / 2, h - 12, w / 2 - 12, h - 6);
+    ctx.closePath();
+    ctx.fill();
+    // long black hair
+    ctx.fillStyle = PAL.ink;
+    ctx.fillRect(w / 2 - 8 + sway, 2, 16, 7);
+    ctx.fillRect(w / 2 - 8 + sway, 6, 3, 16);
+    ctx.fillRect(w / 2 + 5 + sway, 6, 3, 16);
+    // pale face, cold eyes
+    ctx.fillStyle = PAL.white;
+    ctx.fillRect(w / 2 - 4 + sway, 4, 8, 6);
+    eyes(ctx, w / 2 + sway, 7, 2, PAL.spirit);
+    // icy breath
+    ctx.fillStyle = 'rgba(95,211,196,0.35)';
+    blob(ctx, w / 2 + sway * 8, 12, 3 + f, 'rgba(95,211,196,0.35)');
+  }),
   enemy('boss_akatsuki', 44, 44, (ctx, f, w, h) => {
     // the dawn light — a blinding radiant orb
     const r = 14 + f * 2;
@@ -1077,6 +1115,22 @@ export const SPRITES: readonly AtlasEntry[] = [
       } else {
         ctx.fillRect(1, 2, 4, 1);
         ctx.fillRect(2, 1, 1, 4);
+      }
+    },
+  },
+  {
+    id: 'ground_dot_snow',
+    w: 6,
+    h: 6,
+    frames: 2,
+    paint: (ctx, f) => {
+      ctx.fillStyle = 'rgba(232,226,208,0.28)';
+      if (f === 0) {
+        ctx.fillRect(2, 2, 2, 2);
+        ctx.fillRect(4, 4, 1, 1);
+      } else {
+        ctx.fillRect(1, 3, 2, 2);
+        ctx.fillRect(4, 1, 1, 1);
       }
     },
   },

@@ -10,7 +10,7 @@ import type { PowerUpRanks } from './shop';
  */
 export const SAVE_KEY = 'hyakki_save';
 export const QUARANTINE_KEY = 'hyakki_save_corrupt';
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 export interface SaveData {
   version: number;
@@ -25,7 +25,19 @@ export interface SaveData {
     victories: number;
     bestSurvivalTicks: number;
     maxLevel: number;
+    /** v2: best kills in a single run. */
+    bestKills: number;
+    /** v2: total weapon evolutions ever triggered. */
+    evolutionsSeen: number;
+    /** v2: most weapons held simultaneously in a run. */
+    maxWeaponsHeld: number;
+    /** v2: victories on the 雪女の峠 stage. */
+    togeVictories: number;
   };
+  /** v2: kills per enemy id, across all runs. */
+  bestiary: Record<string, number>;
+  /** v2: earned achievement ids. */
+  achievements: string[];
   settings: {
     masterVolume: number;
     musicVolume: number;
@@ -40,13 +52,40 @@ export function defaultSave(): SaveData {
     goldSpent: 0,
     powerUps: {},
     unlockedCharacters: ['onmyoji'],
-    stats: { totalKills: 0, totalRuns: 0, victories: 0, bestSurvivalTicks: 0, maxLevel: 1 },
+    stats: {
+      totalKills: 0,
+      totalRuns: 0,
+      victories: 0,
+      bestSurvivalTicks: 0,
+      maxLevel: 1,
+      bestKills: 0,
+      evolutionsSeen: 0,
+      maxWeaponsHeld: 0,
+      togeVictories: 0,
+    },
+    bestiary: {},
+    achievements: [],
     settings: { masterVolume: 0.8, musicVolume: 0.7, screenShake: true },
   };
 }
 
-/** version → migration to version+1. Tested even while empty. */
-export const MIGRATIONS: Record<number, (old: Record<string, unknown>) => Record<string, unknown>> = {};
+/** version → migration to version+1. */
+export const MIGRATIONS: Record<number, (old: Record<string, unknown>) => Record<string, unknown>> = {
+  // v1 → v2: bestiary, achievements, new stat counters.
+  1: (old) => ({
+    ...old,
+    version: 2,
+    bestiary: {},
+    achievements: [],
+    stats: {
+      bestKills: 0,
+      evolutionsSeen: 0,
+      maxWeaponsHeld: 0,
+      togeVictories: 0,
+      ...(old['stats'] as object | undefined),
+    },
+  }),
+};
 
 export function migrate(raw: Record<string, unknown>): SaveData {
   let data = raw;

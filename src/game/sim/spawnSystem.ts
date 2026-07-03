@@ -1,5 +1,5 @@
 import { ENEMIES, ENEMY_IDS, type EnemyId } from '../../data/enemies';
-import { DESPAWN_RADIUS, SPAWN_RING_RADIUS, STAGE_WAVES } from '../../data/waves';
+import { DESPAWN_RADIUS, SPAWN_RING_RADIUS } from '../../data/waves';
 import { TICK_RATE } from '../../engine/loop';
 import { Ev } from './events';
 import type { World } from './world';
@@ -32,7 +32,7 @@ export function spawnSystem(world: World): void {
     return; // normal waves end at dawn
   }
 
-  const wave = STAGE_WAVES[Math.min(minute, STAGE_WAVES.length - 1)]!;
+  const wave = world.waves[Math.min(minute, world.waves.length - 1)]!;
 
   // One-shot minute-boundary events.
   if (minute !== world.waveMinute) {

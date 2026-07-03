@@ -31,6 +31,9 @@ export const ENEMIES = {
   // on the player — VS elites are pushers, not stragglers.
   gashadokuro: { name: 'がしゃどくろ', sprite: 'boss_gashadokuro', hp: 900, speed: 120, damage: 20, radius: 24, xp: 50, knockbackResist: 1 },
   shuten: { name: '酒呑童子', sprite: 'boss_shuten', hp: 2600, speed: 121, damage: 55, radius: 22, xp: 100, knockbackResist: 1 },
+  // --- stage 2 雪女の峠 exclusives
+  yukinko: { name: '雪ん子', sprite: 'enemy_yukinko', hp: 6, speed: 68, damage: 5, radius: 8, xp: 1, knockbackResist: 0 },
+  yukionna: { name: '雪女', sprite: 'boss_yukionna', hp: 1600, speed: 118, damage: 30, radius: 20, xp: 80, knockbackResist: 1 },
   // --- the dawn sweeper (minute 30, unkillable — VS Reaper mirror)
   akatsuki: { name: '夜明けの光', sprite: 'boss_akatsuki', hp: 655350, speed: 160, damage: 9999, radius: 20, xp: 0, knockbackResist: 1 },
 } as const satisfies Record<string, EnemyDef>;

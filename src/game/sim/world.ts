@@ -1,5 +1,6 @@
 import { CHARACTERS, type CharacterId } from '../../data/characters';
-import type { CharacterDef, Stats } from '../../data/types';
+import { STAGES, type StageId } from '../../data/stages';
+import type { CharacterDef, Stats, WaveDef } from '../../data/types';
 import { xpToNext } from '../../data/xp';
 import { Pool } from '../../engine/pool';
 import { Rng } from '../../engine/rng';
@@ -196,6 +197,9 @@ export interface World {
   /** Stat-source config, needed whenever stats are recomputed mid-run. */
   charDef: CharacterDef;
   powerUpBonuses: Partial<Stats> | null;
+  /** Stage identity + its wave table (presentation looks colors up by id). */
+  stageId: StageId;
+  waves: readonly WaveDef[];
 }
 
 export function baseStats(): Stats {
@@ -228,10 +232,13 @@ export interface RunConfig {
   characterId?: CharacterId;
   /** Aggregated PowerUp stat bonuses from the meta shop. */
   powerUpBonuses?: Partial<Stats>;
+  /** Stage (default: mori). */
+  stageId?: StageId;
 }
 
 export function createRun(config: RunConfig): World {
   const charDef = CHARACTERS[config.characterId ?? 'onmyoji'];
+  const stageId = config.stageId ?? 'mori';
   const powerUps = config.powerUpBonuses ?? null;
   const stats = aggregateStats(charDef, [], powerUps);
   return {
@@ -315,5 +322,7 @@ export function createRun(config: RunConfig): World {
     banished: [],
     charDef,
     powerUpBonuses: powerUps,
+    stageId,
+    waves: STAGES[stageId].waves,
   };
 }

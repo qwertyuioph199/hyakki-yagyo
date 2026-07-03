@@ -1,5 +1,5 @@
-import { PAL } from '../../art/palette';
 import { ENEMY_LIST } from '../../data/enemies';
+import { STAGES } from '../../data/stages';
 import { WEAPONS, type WeaponId } from '../../data/weapons';
 import type { Camera } from '../../engine/camera';
 import type { Renderer } from '../../engine/renderer';
@@ -72,9 +72,10 @@ export class RunPresenter {
   render(world: World, alpha: number): void {
     const r = this.renderer;
     const p = world.player;
+    const stage = STAGES[world.stageId];
     const camX = p.px + (p.x - p.px) * alpha + this.camera.offsetX;
     const camY = p.py + (p.y - p.py) * alpha + this.camera.offsetY;
-    r.begin(camX, camY, PAL.ground);
+    r.begin(camX, camY, stage.bg);
     const atlas = r.atlas;
 
     // Ground decals: deterministic dot pattern keyed on world cell coords.
@@ -87,7 +88,7 @@ export class RunPresenter {
       for (let gx = x0; gx <= x1; gx++) {
         const h = ((gx * 73856093) ^ (gy * 19349663)) >>> 0;
         if ((h & 7) < 3) {
-          r.blit(atlas.frame('ground_dot', h & 1), gx * GRID + (h % GRID), gy * GRID + ((h >> 3) % GRID));
+          r.blit(atlas.frame(stage.groundSprite, h & 1), gx * GRID + (h % GRID), gy * GRID + ((h >> 3) % GRID));
         }
       }
     }

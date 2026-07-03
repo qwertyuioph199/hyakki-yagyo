@@ -1,6 +1,9 @@
 import { SPRITES } from '../../art/spriteDefs';
+import { ACHIEVEMENTS, ACHIEVEMENT_IDS, evaluateAchievements, type AchievementId } from '../../data/achievements';
 import { CHARACTERS, CHARACTER_IDS, type CharacterId } from '../../data/characters';
+import { ENEMIES, ENEMY_IDS } from '../../data/enemies';
 import { POWERUPS, POWERUP_IDS, type PowerUpId } from '../../data/shop';
+import { STAGES, STAGE_IDS, type StageId } from '../../data/stages';
 import { AudioEngine } from '../../engine/audio/audioEngine';
 import { Music } from '../../engine/audio/music';
 import { Sfx } from '../../engine/audio/synth';
@@ -45,6 +48,9 @@ export class Game {
   private resultShown = false;
   private simMs = 0;
   private lastFrame = performance.now();
+  /** Per-run bestiary tally, merged into the save at run end. */
+  private runBestiary = new Map<string, number>();
+  private runEvolutions = 0;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -89,10 +95,12 @@ export class Game {
 
   // ---------- run lifecycle ----------
 
-  private startRun(characterId: CharacterId): void {
+  private startRun(characterId: CharacterId, stageId: StageId): void {
     this.disposeRunUi();
+    this.runBestiary.clear();
+    this.runEvolutions = 0;
     const seed = (0x9e3779b9 ^ (this.save.stats.totalRuns * 0x85ebca6b)) >>> 0;
-    this.world = createRun({ seed, characterId, powerUpBonuses: powerUpBonuses(this.save.powerUps) });
+    this.world = createRun({ seed, characterId, stageId, powerUpBonuses: powerUpBonuses(this.save.powerUps) });
     this.presenter = new RunPresenter(this.renderer, this.camera);
     this.hud = new Hud(this.uiRoot);
     this.draft = new DraftUi(this.uiRoot);
@@ -117,12 +125,22 @@ export class Game {
     this.save.gold += w.player.gold;
     this.save.stats.totalRuns++;
     this.save.stats.totalKills += w.player.kills;
-    if (w.victory) this.save.stats.victories++;
+    if (w.victory) {
+      this.save.stats.victories++;
+      if (w.stageId === 'toge') this.save.stats.togeVictories++;
+    }
     this.save.stats.bestSurvivalTicks = Math.max(this.save.stats.bestSurvivalTicks, w.tick);
     this.save.stats.maxLevel = Math.max(this.save.stats.maxLevel, w.player.level);
+    this.save.stats.bestKills = Math.max(this.save.stats.bestKills, w.player.kills);
+    this.save.stats.evolutionsSeen += this.runEvolutions;
+    this.save.stats.maxWeaponsHeld = Math.max(this.save.stats.maxWeaponsHeld, w.player.weapons.length);
+    for (const [id, n] of this.runBestiary) {
+      this.save.bestiary[id] = (this.save.bestiary[id] ?? 0) + n;
+    }
+    const earned = evaluateAchievements(this.save);
     persistSave(this.save);
     this.music.stop();
-    this.showResults(w);
+    this.showResults(w, earned);
   }
 
   private tick(): void {
@@ -172,9 +190,12 @@ export class Game {
         case Ev.DamageDealt:
           this.sfx.play('hit', 0.7);
           break;
-        case Ev.EnemyDied:
+        case Ev.EnemyDied: {
           this.sfx.play('kill');
+          const id = ENEMY_IDS[e.a];
+          if (id) this.runBestiary.set(id, (this.runBestiary.get(id) ?? 0) + 1);
           break;
+        }
         case Ev.GemPicked:
           this.sfx.play('pickup');
           break;
@@ -189,6 +210,7 @@ export class Game {
           break;
         case Ev.EvolutionUnlocked:
           this.sfx.play('evolution');
+          this.runEvolutions++;
           break;
         case Ev.PlayerHurt:
           this.sfx.play('hurt');
@@ -238,7 +260,71 @@ export class Game {
     const menu = this.screen.querySelector('.hy-menu')!;
     menu.appendChild(this.btn('出撃', () => this.showCharSelect()));
     menu.appendChild(this.btn('強化(護符)', () => this.showShop(), '#5fd3c4'));
+    menu.appendChild(this.btn(`実績 (${this.save.achievements.length}/${ACHIEVEMENT_IDS.length})`, () => this.showAchievements(), '#f5c542'));
+    menu.appendChild(this.btn('図鑑', () => this.showBestiary(), '#8a6fc9'));
     menu.appendChild(this.btn('設定', () => this.showOptions(), '#9fb8c9'));
+    this.screen.style.display = 'flex';
+  }
+
+  private showAchievements(): void {
+    const rows = ACHIEVEMENT_IDS.map((id) => {
+      const def = ACHIEVEMENTS[id];
+      const got = this.save.achievements.includes(id);
+      return `
+        <div style="display:flex;align-items:center;gap:12px;padding:7px 10px;border-bottom:1px solid #22222e;${got ? '' : 'opacity:.45;'}">
+          <div style="font-size:18px;">${got ? '🏮' : '○'}</div>
+          <div style="width:130px;color:${got ? '#f5c542' : '#9fb8c9'};font-size:13px;">${def.name}</div>
+          <div style="flex:1;color:#9fb8c9;font-size:11px;text-align:left;">${def.desc}</div>
+        </div>`;
+    }).join('');
+    this.screen.innerHTML = `
+      <div style="text-align:center;max-width:640px;max-height:92vh;overflow:auto;">
+        <h2 style="color:#f5c542;letter-spacing:.3em;margin:10px 0;">実績 ${this.save.achievements.length}/${ACHIEVEMENT_IDS.length}</h2>
+        <div>${rows}</div>
+        <div class="hy-menu" style="margin:14px 0;"></div>
+      </div>`;
+    this.screen.querySelector('.hy-menu')!.appendChild(this.btn('戻る', () => this.showTitle(), '#9fb8c9'));
+    this.screen.style.display = 'flex';
+  }
+
+  private showBestiary(): void {
+    const cells = ENEMY_IDS.filter((id) => id !== 'akatsuki').map((id) => {
+      const def = ENEMIES[id];
+      const kills = this.save.bestiary[id] ?? 0;
+      const known = kills > 0;
+      return `
+        <div style="width:118px;padding:10px 6px;background:#16161f;border:1px solid ${known ? '#3a3a45' : '#22222e'};text-align:center;${known ? '' : 'opacity:.4;'}">
+          <canvas data-sprite="${def.sprite}" width="40" height="40" style="image-rendering:pixelated;"></canvas>
+          <div style="font-size:12px;color:${known ? '#e8a33d' : '#5a5a6a'};">${known ? def.name : '???'}</div>
+          <div style="font-size:10px;color:#9fb8c9;">討伐 ${kills}</div>
+        </div>`;
+    }).join('');
+    this.screen.innerHTML = `
+      <div style="text-align:center;max-width:820px;max-height:92vh;overflow:auto;">
+        <h2 style="color:#8a6fc9;letter-spacing:.3em;margin:10px 0;">妖怪図鑑</h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">${cells}</div>
+        <div class="hy-menu" style="margin:14px 0;"></div>
+      </div>`;
+    // Draw enemy sprites from the atlas into the mini canvases.
+    const atlas = this.renderer.atlas;
+    this.screen.querySelectorAll<HTMLCanvasElement>('canvas[data-sprite]').forEach((cv) => {
+      const frame = atlas.frame(cv.dataset['sprite']!, 0);
+      const ctx = cv.getContext('2d')!;
+      ctx.imageSmoothingEnabled = false;
+      const scale = Math.min(40 / frame.w, 40 / frame.h, 2);
+      ctx.drawImage(
+        atlas.source,
+        frame.sx,
+        frame.sy,
+        frame.w,
+        frame.h,
+        (40 - frame.w * scale) / 2,
+        (40 - frame.h * scale) / 2,
+        frame.w * scale,
+        frame.h * scale,
+      );
+    });
+    this.screen.querySelector('.hy-menu')!.appendChild(this.btn('戻る', () => this.showTitle(), '#9fb8c9'));
     this.screen.style.display = 'flex';
   }
 
@@ -265,7 +351,7 @@ export class Game {
       card.onclick = () => {
         this.sfx.play('click');
         if (unlocked) {
-          this.startRun(id);
+          this.showStageSelect(id);
         } else if (affordable) {
           this.save.gold -= def.unlockCost;
           this.save.unlockedCharacters.push(id);
@@ -277,6 +363,35 @@ export class Game {
       grid.appendChild(card);
     }
     this.screen.querySelector('.hy-back')!.appendChild(this.btn('戻る', () => this.showTitle(), '#9fb8c9'));
+    this.screen.style.display = 'flex';
+  }
+
+  private showStageSelect(characterId: CharacterId): void {
+    const bestMin = this.save.stats.bestSurvivalTicks / (TICK_RATE * 60);
+    this.screen.innerHTML = `
+      <div style="text-align:center;max-width:720px;">
+        <h2 style="color:#e8a33d;letter-spacing:.3em;margin-bottom:18px;">何処の夜へ?</h2>
+        <div class="hy-stages" style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;"></div>
+        <div class="hy-back" style="margin-top:18px;"></div>
+      </div>`;
+    const grid = this.screen.querySelector('.hy-stages')!;
+    for (const id of STAGE_IDS) {
+      const def = STAGES[id];
+      const unlocked = bestMin >= def.unlockMinutes;
+      const card = document.createElement('button');
+      card.style.cssText =
+        `width:250px;padding:18px 14px;background:${def.bg};border:2px solid ${unlocked ? '#e8a33d' : '#3a3a45'};` +
+        `color:#f2ead8;cursor:pointer;font-family:inherit;text-align:center;${unlocked ? '' : 'opacity:.55;'}`;
+      card.innerHTML = `
+        <div style="color:#e8a33d;font-size:16px;margin-bottom:8px;">${def.name}</div>
+        <div style="font-size:11px;opacity:.85;min-height:48px;">${def.desc}</div>`;
+      card.onclick = () => {
+        this.sfx.play('click');
+        if (unlocked) this.startRun(characterId, id);
+      };
+      grid.appendChild(card);
+    }
+    this.screen.querySelector('.hy-back')!.appendChild(this.btn('戻る', () => this.showCharSelect(), '#9fb8c9'));
     this.screen.style.display = 'flex';
   }
 
@@ -305,20 +420,24 @@ export class Game {
     this.screen.style.display = 'flex';
   }
 
-  private showResults(w: World): void {
+  private showResults(w: World, earned: AchievementId[] = []): void {
     const minutes = Math.floor(w.tick / (TICK_RATE * 60));
     const seconds = Math.floor(w.tick / TICK_RATE) % 60;
     const title = w.victory ? '夜 明 け' : '力尽きた…';
     const color = w.victory ? '#f5c542' : '#b03a3a';
+    const earnedHtml = earned.length
+      ? `<div style="margin-top:14px;font-size:13px;color:#f5c542;">実績解除: ${earned.map((id) => `「${ACHIEVEMENTS[id].name}」`).join(' ')}</div>`
+      : '';
     this.screen.innerHTML = `
       <div style="text-align:center;">
         <div style="font-size:44px;color:${color};letter-spacing:.35em;margin-bottom:16px;">${title}</div>
         ${w.victory ? '<div style="color:#9fb8c9;font-size:13px;margin-bottom:14px;">百鬼の夜を生き延びた。朝日が全てを浄化する——</div>' : ''}
         <div style="font-size:14px;line-height:2;color:#f2ead8;">
-          生存時間 <b>${minutes}:${String(seconds).padStart(2, '0')}</b><br/>
+          ${STAGES[w.stageId].name} ・ 生存時間 <b>${minutes}:${String(seconds).padStart(2, '0')}</b><br/>
           討伐数 <b>${w.player.kills}</b> ・ 到達レベル <b>${w.player.level}</b><br/>
           獲得 <b style="color:#f5c542;">${w.player.gold} 文</b>(合計 ${this.save.gold} 文)
         </div>
+        ${earnedHtml}
         <div class="hy-menu" style="margin-top:22px;"></div>
       </div>`;
     const menu = this.screen.querySelector('.hy-menu')!;
