@@ -1,9 +1,11 @@
-import type { Stats } from '../../data/types';
+import { CHARACTERS, type CharacterId } from '../../data/characters';
+import type { CharacterDef, Stats } from '../../data/types';
 import { xpToNext } from '../../data/xp';
 import { Pool } from '../../engine/pool';
 import { Rng } from '../../engine/rng';
 import { SpatialHash } from '../../engine/spatialHash';
 import { EventQueue } from './events';
+import { aggregateStats } from './statSystem';
 
 /**
  * RunState + createRun/stepRun are the frozen heart of the game. This module
@@ -40,9 +42,33 @@ export interface Enemy {
   hitFlash: number;
   /** Minibosses drop a chest and ignore knockback/despawn recycling. */
   boss: boolean;
+  /**
+   * Per-weapon-slot re-hit gate (VS "hitbox delay"): persistent weapons
+   * (orbit/aura/zone/whip) may damage this enemy again only when
+   * world.tick >= hitUntil[weaponIdx]. Fixed 6 slots = MAX_WEAPONS.
+   */
+  hitUntil: Int32Array;
+}
+
+export const enum ProjKind {
+  /** Ballistic: straight line, dies after `pierce` distinct enemies. */
+  Ballistic = 0,
+  /** Falls with gravity (axe-like); ballistic hit rules. */
+  ArcLob = 1,
+  /** Orbits the player; persistent hit rules (enemy.hitUntil). */
+  Orbit = 2,
+  /** Flies out then returns (cross-like); persistent hit rules. */
+  Boomerang = 3,
+  /** Stationary damage zone ticking on an interval. */
+  Zone = 4,
+  /** Instant melee arc snapshot (whip-like); persistent hit rules. */
+  Slash = 5,
+  /** Visual-only bolt (randomStrike damage is applied on spawn). */
+  Bolt = 6,
 }
 
 export interface Projectile {
+  kind: ProjKind;
   x: number;
   y: number;
   px: number;
@@ -54,9 +80,16 @@ export interface Projectile {
   knockback: number;
   /** Remaining lifetime in ticks. */
   ttl: number;
+  /** Hit radius in px (scaled by Area at spawn). */
+  radius: number;
   weaponIdx: number;
   spriteIdx: number;
-  /** uids of enemies already hit (no double-hits per projectile). */
+  /** Kind-specific: orbit angle / boomerang phase / zone tick timer. */
+  aux1: number;
+  aux2: number;
+  /** Ticks between damage applications for persistent kinds. */
+  hitInterval: number;
+  /** uids of enemies already hit (ballistic kinds only). */
   hit0: number;
   hit1: number;
   hit2: number;
@@ -160,6 +193,9 @@ export interface World {
   draft: DraftChoice[] | null;
   /** Item ids banished from this run's draft pool. */
   banished: string[];
+  /** Stat-source config, needed whenever stats are recomputed mid-run. */
+  charDef: CharacterDef;
+  powerUpBonuses: Partial<Stats> | null;
 }
 
 export function baseStats(): Stats {
@@ -188,10 +224,16 @@ export function baseStats(): Stats {
 
 export interface RunConfig {
   seed: number;
+  /** Playable character (default: onmyoji). */
+  characterId?: CharacterId;
+  /** Aggregated PowerUp stat bonuses from the meta shop. */
+  powerUpBonuses?: Partial<Stats>;
 }
 
 export function createRun(config: RunConfig): World {
-  const stats = baseStats();
+  const charDef = CHARACTERS[config.characterId ?? 'onmyoji'];
+  const powerUps = config.powerUpBonuses ?? null;
+  const stats = aggregateStats(charDef, [], powerUps);
   return {
     tick: 0,
     rng: new Rng(config.seed),
@@ -211,7 +253,7 @@ export function createRun(config: RunConfig): World {
       iframes: 0,
       regenAcc: 0,
       stats,
-      weapons: [{ id: 'ofuda', level: 1, cooldown: 30, state: 0 }],
+      weapons: [{ id: charDef.startingWeapon, level: 1, cooldown: 30, state: 0 }],
       passives: [],
       pendingLevelUps: 0,
     },
@@ -233,8 +275,10 @@ export function createRun(config: RunConfig): World {
       knockbackResist: 0,
       hitFlash: 0,
       boss: false,
+      hitUntil: new Int32Array(6),
     })),
     projectiles: new Pool<Projectile>(CAP.projectiles, () => ({
+      kind: 0 as Projectile['kind'],
       x: 0,
       y: 0,
       px: 0,
@@ -245,8 +289,12 @@ export function createRun(config: RunConfig): World {
       pierce: 0,
       knockback: 0,
       ttl: 0,
+      radius: 10,
       weaponIdx: 0,
       spriteIdx: 0,
+      aux1: 0,
+      aux2: 0,
+      hitInterval: 0,
       hit0: -1,
       hit1: -1,
       hit2: -1,
@@ -265,5 +313,7 @@ export function createRun(config: RunConfig): World {
     waveMinute: -1,
     draft: null,
     banished: [],
+    charDef,
+    powerUpBonuses: powerUps,
   };
 }

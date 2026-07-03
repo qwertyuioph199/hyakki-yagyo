@@ -43,16 +43,17 @@ export interface Stats {
 
 export type StatKey = keyof Stats;
 
-/** The 8 weapon behavior archetypes every weapon maps onto. */
+/** The weapon behavior archetypes every weapon maps onto. */
 export type WeaponBehavior =
-  | 'aimedProjectile'
-  | 'orbit'
-  | 'aura'
-  | 'arcLob'
-  | 'boomerang'
-  | 'randomStrike'
-  | 'zone'
-  | 'familiar';
+  | 'aimedProjectile' // fires at the nearest enemy (VS Magic Wand rule)
+  | 'directional' // fires along the facing direction (VS Knife rule)
+  | 'whipSlash' // instant melee arc, alternating sides (VS Whip rule)
+  | 'orbit' // orbs circle the player for a duration (VS King Bible)
+  | 'aura' // persistent damage field around the player (VS Garlic)
+  | 'arcLob' // heavy projectile thrown upward, falls with gravity (VS Axe)
+  | 'boomerang' // flies out and returns (VS Cross)
+  | 'randomStrike' // strikes random on-screen enemies (VS Lightning Ring)
+  | 'zone'; // lobbed flask leaves a damage zone (VS Santa Water)
 
 /** Per-level upgrade delta, declared exactly like the VS wiki tables. */
 export interface WeaponLevelDelta {
@@ -89,6 +90,10 @@ export interface WeaponDef {
   weight: number;
   /** Evolved weapons never appear in the draft. */
   evolutionOnly?: boolean;
+  /** aimedProjectile only: target a random enemy instead of the nearest. */
+  aimRandom?: boolean;
+  /** Seconds between damage ticks for aura/zone behaviors. */
+  tickRate?: number;
 }
 
 export interface PassiveDef {

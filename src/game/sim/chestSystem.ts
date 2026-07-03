@@ -102,7 +102,7 @@ export function openChest(world: World): ChestResult {
       p.weapons.find((w) => w.id === pick.id)!.level = pick.toLevel;
     } else {
       p.passives.find((x) => x.id === pick.id)!.level = pick.toLevel;
-      recomputeStats(p, null, null);
+      recomputeStats(p, world.charDef, world.powerUpBonuses);
     }
     items.push(pick);
   }

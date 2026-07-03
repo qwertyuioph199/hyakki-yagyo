@@ -97,7 +97,7 @@ export function applyDraftChoice(world: World, choice: DraftChoice): void {
       const owned = p.passives.find((x) => x.id === choice.id);
       if (owned) owned.level = choice.toLevel;
       else p.passives.push({ id: choice.id, level: 1 });
-      recomputeStats(p, null, null);
+      recomputeStats(p, world.charDef, world.powerUpBonuses);
       break;
     }
     case 'gold':

@@ -21,9 +21,22 @@ export function spawnSystem(world: World): void {
   if (minute !== world.waveMinute) {
     world.waveMinute = minute;
     if (wave.swarm) {
-      for (let i = 0; i < wave.swarm.count; i++) {
-        const ang = (i / wave.swarm.count) * Math.PI * 2;
-        spawnEnemyAt(world, wave.swarm.enemy as EnemyId, ang);
+      if (wave.swarm.formation === 'ring') {
+        for (let i = 0; i < wave.swarm.count; i++) {
+          const ang = (i / wave.swarm.count) * Math.PI * 2;
+          spawnEnemyAt(world, wave.swarm.enemy as EnemyId, ang);
+        }
+      } else {
+        // Wall: a line of enemies at the ring distance, sweeping inward.
+        const theta = world.rng.float(0, Math.PI * 2);
+        const cx = world.player.x + Math.cos(theta) * SPAWN_RING_RADIUS;
+        const cy = world.player.y + Math.sin(theta) * SPAWN_RING_RADIUS;
+        const perpX = -Math.sin(theta);
+        const perpY = Math.cos(theta);
+        for (let i = 0; i < wave.swarm.count; i++) {
+          const off = (i - wave.swarm.count / 2) * 26;
+          spawnEnemyAtPos(world, wave.swarm.enemy as EnemyId, cx + perpX * off, cy + perpY * off);
+        }
       }
       world.events.emit(Ev.SwarmEvent, world.player.x, world.player.y, 0, 0);
     }
@@ -64,13 +77,23 @@ export function spawnSystem(world: World): void {
 }
 
 export function spawnEnemyAt(world: World, id: EnemyId, angle: number, isBoss = false): boolean {
+  const p = world.player;
+  return spawnEnemyAtPos(
+    world,
+    id,
+    p.x + Math.cos(angle) * SPAWN_RING_RADIUS,
+    p.y + Math.sin(angle) * SPAWN_RING_RADIUS,
+    isBoss,
+  );
+}
+
+export function spawnEnemyAtPos(world: World, id: EnemyId, x: number, y: number, isBoss = false): boolean {
   const def = ENEMIES[id] ?? ENEMIES[ENEMY_IDS[0]!];
   const e = world.enemies.alloc();
   if (!e) return false;
-  const p = world.player;
   e.uid = world.nextEnemyUid++;
-  e.x = e.px = p.x + Math.cos(angle) * SPAWN_RING_RADIUS;
-  e.y = e.py = p.y + Math.sin(angle) * SPAWN_RING_RADIUS;
+  e.x = e.px = x;
+  e.y = e.py = y;
   e.kx = 0;
   e.ky = 0;
   e.hp = e.maxHp = def.hp * world.player.stats.curse;
@@ -82,5 +105,6 @@ export function spawnEnemyAt(world: World, id: EnemyId, angle: number, isBoss = 
   e.knockbackResist = isBoss ? 1 : def.knockbackResist;
   e.hitFlash = 0;
   e.boss = isBoss;
+  e.hitUntil.fill(0); // recycled slot must not inherit re-hit gates
   return true;
 }

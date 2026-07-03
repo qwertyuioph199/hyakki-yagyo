@@ -29,11 +29,12 @@ const MULTIPLIER_STATS = [
 const FLAT_STATS = ['armor', 'recovery', 'amount', 'revival', 'reroll', 'skip', 'banish'] as const;
 
 export function aggregateStats(
-  character: Pick<CharacterDef, 'bonuses' | 'baseHp'> | null,
+  character: Pick<CharacterDef, 'bonuses' | 'baseHp'> & { baseMoveSpeed?: number } | null,
   passives: readonly PassiveInstance[],
   powerUpBonuses: Partial<Stats> | null,
 ): Stats {
   const out = baseStats();
+  if (character?.baseMoveSpeed !== undefined) out.moveSpeed += character.baseMoveSpeed - 1;
 
   // Collect additive contributions per stat from passives.
   const add = (key: keyof Stats, v: number) => {
