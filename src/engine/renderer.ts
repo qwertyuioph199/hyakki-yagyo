@@ -35,14 +35,34 @@ export class Renderer {
     return this._atlas;
   }
 
+  private readonly groundPatterns = new Map<string, CanvasPattern>();
+
+  /** Register a tileable ground texture (async-loaded; begin() falls back to flat color until ready). */
+  registerGroundTexture(key: string, image: CanvasImageSource): void {
+    const pattern = this.ctx.createPattern(image, 'repeat');
+    if (pattern) this.groundPatterns.set(key, pattern);
+  }
+
   /** camX/camY = world coords of the view CENTER. */
-  begin(camX: number, camY: number, bg: string): void {
+  begin(camX: number, camY: number, bg: string, textureKey?: string): void {
     this.camX = camX - this.viewW / 2;
     this.camY = camY - this.viewH / 2;
     this.drawCalls = 0;
     this.culled = 0;
     this.ctx.fillStyle = bg;
     this.ctx.fillRect(0, 0, this.viewW, this.viewH);
+    if (textureKey) {
+      const pattern = this.groundPatterns.get(textureKey);
+      if (pattern) {
+        // Scroll the texture with the camera, then dim it back toward the
+        // stage color so sprites stay readable on top.
+        pattern.setTransform(new DOMMatrix().translate(-this.camX, -this.camY));
+        this.ctx.fillStyle = pattern;
+        this.ctx.fillRect(0, 0, this.viewW, this.viewH);
+        this.ctx.fillStyle = bg + '99'; // ~60% stage-color wash
+        this.ctx.fillRect(0, 0, this.viewW, this.viewH);
+      }
+    }
   }
 
   /** Blit a frame anchored at world position (wx, wy). */

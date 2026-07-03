@@ -12,6 +12,8 @@ export interface StageDef {
   /** Presentation: background + ground-decal sprite id. */
   bg: string;
   groundSprite: string;
+  /** AI-generated tileable ground texture (relative to /play/). */
+  groundTexture: string;
   /** Unlock: best survival on ANY stage must reach this many minutes. */
   unlockMinutes: number;
 }
@@ -67,6 +69,7 @@ export const STAGES = {
     waves: STAGE_WAVES,
     bg: '#101018',
     groundSprite: 'ground_dot',
+    groundTexture: '../assets/ground_mori.jpg',
     unlockMinutes: 0,
   },
   toge: {
@@ -75,6 +78,7 @@ export const STAGES = {
     waves: TOGE_WAVES,
     bg: '#0e141f',
     groundSprite: 'ground_dot_snow',
+    groundTexture: '../assets/ground_toge.jpg',
     unlockMinutes: 15,
   },
 } as const satisfies Record<string, StageDef>;

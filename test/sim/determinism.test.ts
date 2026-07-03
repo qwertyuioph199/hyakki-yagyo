@@ -104,7 +104,7 @@ describe('sim determinism', () => {
 });
 
 // Captured from the first green run of this suite (see test output).
-const GOLDEN_HASH_5K = 1337691730;
+const GOLDEN_HASH_5K = 906102826;
 
 it('prints the current golden hash for updating', () => {
   const { world } = runFor(20260702, 5_000);

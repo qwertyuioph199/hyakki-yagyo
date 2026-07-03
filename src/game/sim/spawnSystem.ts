@@ -2,7 +2,7 @@ import { ENEMIES, ENEMY_IDS, type EnemyId } from '../../data/enemies';
 import { DESPAWN_RADIUS, SPAWN_RING_RADIUS } from '../../data/waves';
 import { TICK_RATE } from '../../engine/loop';
 import { Ev } from './events';
-import type { World } from './world';
+import { PickupKind, type World } from './world';
 
 /**
  * Wave-table interpreter (MECHANICS.md §2):
@@ -15,6 +15,8 @@ import type { World } from './world';
  */
 const DAWN_TICK = 30 * 60 * TICK_RATE; // 30:00 — tick 108,000
 const SWEEPER_INTERVAL = 8 * TICK_RATE;
+/** Ticks between field drops (coin/food/utility near the player). */
+const FIELD_DROP_INTERVAL = 40 * TICK_RATE;
 
 export function spawnSystem(world: World): void {
   const minute = Math.floor(world.tick / (TICK_RATE * 60));
@@ -60,6 +62,32 @@ export function spawnSystem(world: World): void {
     if (wave.boss) {
       spawnEnemyAt(world, wave.boss as EnemyId, world.rng.float(0, Math.PI * 2), true);
       world.events.emit(Ev.BossSpawned, world.player.x, world.player.y, 0, 0);
+    }
+  }
+
+  // Field drops (the VS brazier/light-source mirror): every ~40s something
+  // useful appears near the player — mostly coins, sometimes food/utility.
+  if (world.tick > 0 && world.tick % FIELD_DROP_INTERVAL === 0) {
+    const item = world.pickups.alloc();
+    if (item) {
+      const ang = world.rng.float(0, Math.PI * 2);
+      const dist = world.rng.float(180, 380);
+      item.x = world.player.x + Math.cos(ang) * dist;
+      item.y = world.player.y + Math.sin(ang) * dist;
+      const roll = world.rng.weighted([5, 3, 1, 1]);
+      if (roll === 0) {
+        item.kind = PickupKind.Coin;
+        item.value = 8 + world.rng.int(8);
+      } else if (roll === 1) {
+        item.kind = PickupKind.Food;
+        item.value = 30;
+      } else if (roll === 2) {
+        item.kind = PickupKind.Vacuum;
+        item.value = 0;
+      } else {
+        item.kind = PickupKind.Bomb;
+        item.value = 0;
+      }
     }
   }
 

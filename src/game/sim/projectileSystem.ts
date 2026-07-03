@@ -149,10 +149,23 @@ export function damageEnemyContact(
       }
     } else {
       spawnGem(world, enemy.x, enemy.y, enemy.xp);
+      // RE §8: trash occasionally drops a coin (luck-scaled) so gold flows
+      // outside boss chests too.
+      if (world.rng.next() < COIN_DROP_CHANCE * world.player.stats.luck) {
+        const coin = world.pickups.alloc();
+        if (coin) {
+          coin.x = enemy.x;
+          coin.y = enemy.y;
+          coin.kind = PickupKind.Coin;
+          coin.value = 1 + world.rng.int(3);
+        }
+      }
     }
     world.enemies.free(enemyIdx);
   }
 }
+
+const COIN_DROP_CHANCE = 0.02;
 
 export function spawnGem(world: World, x: number, y: number, value: number): void {
   const gem = world.gems.alloc();

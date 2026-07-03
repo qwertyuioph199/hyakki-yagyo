@@ -75,7 +75,7 @@ export class RunPresenter {
     const stage = STAGES[world.stageId];
     const camX = p.px + (p.x - p.px) * alpha + this.camera.offsetX;
     const camY = p.py + (p.y - p.py) * alpha + this.camera.offsetY;
-    r.begin(camX, camY, stage.bg);
+    r.begin(camX, camY, stage.bg, world.stageId);
     const atlas = r.atlas;
 
     // Ground decals: deterministic dot pattern keyed on world cell coords.

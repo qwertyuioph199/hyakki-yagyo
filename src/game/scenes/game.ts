@@ -58,6 +58,13 @@ export class Game {
   ) {
     this.renderer = new Renderer(canvas, VIEW_W, VIEW_H);
     this.renderer.setAtlas(buildAtlas(SPRITES));
+    // AI-generated ground textures load in the background; runs started
+    // before they arrive just show the flat stage color.
+    for (const id of STAGE_IDS) {
+      const img = new Image();
+      img.onload = () => this.renderer.registerGroundTexture(id, img);
+      img.src = STAGES[id].groundTexture;
+    }
     this.input.attach(window);
     this.save = loadSave();
     this.audio.setMasterVolume(this.save.settings.masterVolume);
@@ -144,11 +151,14 @@ export class Game {
   }
 
   private tick(): void {
+    // Read one-shot keys BEFORE sample() clears the pressed set.
+    const escPressed = this.input.wasPressed('Escape');
+    const f3Pressed = this.input.wasPressed('F3');
     const snapshot = this.input.sample();
-    if (this.input.wasPressed('F3')) this.perf.toggle();
+    if (f3Pressed) this.perf.toggle();
     if (!this.world || this.resultShown) return;
 
-    if (this.input.wasPressed('Escape') && !this.world.gameOver) {
+    if (escPressed && !this.world.gameOver) {
       this.paused = !this.paused;
       if (this.paused) this.showPause();
       else this.screen.style.display = 'none';
@@ -156,9 +166,14 @@ export class Game {
     if (this.paused) return;
 
     const t0 = performance.now();
+    const tickBefore = this.world.tick;
     stepRun(this.world, snapshot);
-    this.presenter?.consumeEvents(this.world);
-    this.bindSfx(this.world);
+    // The sim freezes during drafts/game-over without clearing its event
+    // buffer — draining it again would replay the same SFX every tick.
+    if (this.world.tick !== tickBefore) {
+      this.presenter?.consumeEvents(this.world);
+      this.bindSfx(this.world);
+    }
     this.camera.tick();
     this.simMs = performance.now() - t0;
 
@@ -247,6 +262,8 @@ export class Game {
 
   private showTitle(): void {
     const s = this.save;
+    this.screen.style.background =
+      'linear-gradient(rgba(11,11,18,.55), rgba(11,11,18,.88)), url(../assets/bg_title.jpg) center/cover no-repeat #0b0b12';
     this.screen.innerHTML = `
       <div style="text-align:center;">
         <div style="font-size:56px;color:#e8a33d;letter-spacing:.35em;text-shadow:0 0 24px rgba(232,163,61,.4);margin-bottom:2px;">百鬼夜行</div>
@@ -396,6 +413,7 @@ export class Game {
   }
 
   private showPause(): void {
+    this.screen.style.background = 'rgba(11,11,18,.85)';
     this.screen.innerHTML = `
       <div style="text-align:center;">
         <h2 style="color:#e8a33d;letter-spacing:.3em;margin-bottom:18px;">小休止</h2>
@@ -428,6 +446,7 @@ export class Game {
     const earnedHtml = earned.length
       ? `<div style="margin-top:14px;font-size:13px;color:#f5c542;">実績解除: ${earned.map((id) => `「${ACHIEVEMENTS[id].name}」`).join(' ')}</div>`
       : '';
+    this.screen.style.background = 'rgba(11,11,18,.92)';
     this.screen.innerHTML = `
       <div style="text-align:center;">
         <div style="font-size:44px;color:${color};letter-spacing:.35em;margin-bottom:16px;">${title}</div>
