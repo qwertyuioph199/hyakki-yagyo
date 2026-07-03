@@ -1,4 +1,5 @@
 import { ENEMY_LIST } from '../../data/enemies';
+import { PAL } from '../../art/palette';
 import { STAGES } from '../../data/stages';
 import { WEAPONS, type WeaponId } from '../../data/weapons';
 import type { Camera } from '../../engine/camera';
@@ -6,6 +7,10 @@ import type { Renderer } from '../../engine/renderer';
 import { Ev } from '../sim/events';
 import { collectLevels } from '../sim/weaponSystem';
 import { PickupKind, ProjKind, type World } from '../sim/world';
+
+const PAL_BAR_BACK = '#000000cc';
+const PAL_BAR_HP = PAL.hpRed;
+const PAL_BAR_BOSS = PAL.violet;
 
 /**
  * Draws the world and owns all presentation-only state (floating damage
@@ -149,11 +154,22 @@ export class RunPresenter {
       r.blit(frame, e.px + (e.x - e.px) * alpha, e.py + (e.y - e.py) * alpha);
     }
 
-    // Player (blink while invulnerable).
+    // Player (blink while invulnerable) + VS-style HP bar under the feet.
+    const heroX = camX - this.camera.offsetX;
+    const heroY = camY - this.camera.offsetY;
     if (p.iframes === 0 || (world.tick & 3) < 2) {
       const moving = p.x !== p.px || p.y !== p.py;
       const heroFrame = atlas.frame(world.charDef.sprite, moving ? (world.tick >> 3) & 1 : 0);
-      r.blit(heroFrame, camX - this.camera.offsetX, camY - this.camera.offsetY);
+      r.blit(heroFrame, heroX, heroY);
+    }
+    r.barWorld(heroX, heroY + 16, 26, 3, p.hp / p.stats.maxHp, PAL_BAR_BACK, PAL_BAR_HP);
+
+    // Boss HP bars.
+    for (let i = 0; i < world.enemies.count; i++) {
+      const e = world.enemies.items[i]!;
+      if (e.boss && e.maxHp < 100000) {
+        r.barWorld(e.x, e.y - e.radius - 8, 36, 4, e.hp / e.maxHp, PAL_BAR_BACK, PAL_BAR_BOSS);
+      }
     }
 
     // Projectiles (non-zone kinds).

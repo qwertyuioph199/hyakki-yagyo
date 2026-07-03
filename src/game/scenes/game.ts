@@ -1,4 +1,6 @@
+import { loadOverrides, OVERRIDABLE_IDS, spritesWithOverrides } from '../../art/overrides';
 import { SPRITES } from '../../art/spriteDefs';
+import { spawnEnemyAtPos } from '../sim/spawnSystem';
 import { ACHIEVEMENTS, ACHIEVEMENT_IDS, evaluateAchievements, type AchievementId } from '../../data/achievements';
 import { CHARACTERS, CHARACTER_IDS, type CharacterId } from '../../data/characters';
 import { ENEMIES, ENEMY_IDS } from '../../data/enemies';
@@ -58,11 +60,21 @@ export class Game {
   ) {
     this.renderer = new Renderer(canvas, VIEW_W, VIEW_H);
     this.renderer.setAtlas(buildAtlas(SPRITES));
+    // AI-art sprite overrides load in the background; the atlas is rebuilt
+    // once they arrive (procedural art shows until then). Drop transparent
+    // PNGs at public/assets/sprites/<id>.png — see ASSETS_GPTIMAGE2.md.
+    void loadOverrides().then((ov) => {
+      if (ov.size === 0) return;
+      this.renderer.setAtlas(buildAtlas(spritesWithOverrides(ov)));
+      this.hud?.setAtlas(this.renderer.atlas);
+      // eslint-disable-next-line no-console
+      console.log(`[hyakki] AI sprite overrides loaded: ${[...ov.keys()].join(', ')}`);
+    });
     // AI-generated ground textures load in the background; runs started
     // before they arrive just show the flat stage color.
     for (const id of STAGE_IDS) {
       const img = new Image();
-      img.onload = () => this.renderer.registerGroundTexture(id, img);
+      img.onload = () => this.renderer.registerGroundTexture(id, img, STAGES[id].bg + '99');
       img.src = STAGES[id].groundTexture;
     }
     this.input.attach(window);
@@ -95,6 +107,16 @@ export class Game {
         loop.timeScale = x;
       },
       getWorld: () => this.world,
+      // Print which AI-art slots exist and which currently have a PNG.
+      listAssetSlots: async () => {
+        const ov = await loadOverrides();
+        return OVERRIDABLE_IDS.map((id) => `${ov.has(id) ? '✔' : '·'} ${id}`).join('\n');
+      },
+      // Fabricate a dense horde around the player (rAF-independent test aid).
+      stressSpawn: (n: number) => this.debugStressSpawn(n),
+      // Time N render() calls synchronously — measures per-frame render cost
+      // regardless of background rAF throttling.
+      benchRender: (frames = 300) => this.debugBenchRender(frames),
     };
 
     this.showTitle();
@@ -109,7 +131,7 @@ export class Game {
     const seed = (0x9e3779b9 ^ (this.save.stats.totalRuns * 0x85ebca6b)) >>> 0;
     this.world = createRun({ seed, characterId, stageId, powerUpBonuses: powerUpBonuses(this.save.powerUps) });
     this.presenter = new RunPresenter(this.renderer, this.camera);
-    this.hud = new Hud(this.uiRoot);
+    this.hud = new Hud(this.uiRoot, this.renderer.atlas);
     this.draft = new DraftUi(this.uiRoot);
     this.resultShown = false;
     this.paused = false;
@@ -196,6 +218,41 @@ export class Game {
     const now = performance.now();
     this.perf.record(now - this.lastFrame, this.simMs, now - t0);
     this.lastFrame = now;
+  }
+
+  private debugStressSpawn(n: number): number {
+    const w = this.world;
+    if (!w) return 0;
+    let spawned = 0;
+    for (let i = 0; i < n; i++) {
+      const ang = (i / n) * Math.PI * 2;
+      const dist = 40 + (i % 200);
+      if (spawnEnemyAtPos(w, 'oni', w.player.x + Math.cos(ang) * dist, w.player.y + Math.sin(ang) * dist)) {
+        spawned++;
+      }
+    }
+    return spawned;
+  }
+
+  private debugBenchRender(frames: number): unknown {
+    const times: number[] = [];
+    for (let f = 0; f < frames; f++) {
+      const t0 = performance.now();
+      this.render(1);
+      this.renderer.ctx.getImageData(0, 0, 1, 1); // force raster flush
+      times.push(performance.now() - t0);
+    }
+    times.sort((a, b) => a - b);
+    const pick = (p: number) => times[Math.min(frames - 1, Math.floor(frames * p))]!;
+    return {
+      p50: +pick(0.5).toFixed(2),
+      p95: +pick(0.95).toFixed(2),
+      p99: +pick(0.99).toFixed(2),
+      mean: +(times.reduce((a, b) => a + b, 0) / frames).toFixed(2),
+      frames,
+      enemies: this.world?.enemies.count ?? 0,
+      projectiles: this.world?.projectiles.count ?? 0,
+    };
   }
 
   private bindSfx(world: World): void {

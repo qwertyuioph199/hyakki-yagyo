@@ -35,12 +35,23 @@ export class Renderer {
     return this._atlas;
   }
 
-  private readonly groundPatterns = new Map<string, CanvasPattern>();
+  private readonly groundTiles = new Map<string, HTMLCanvasElement>();
 
-  /** Register a tileable ground texture (async-loaded; begin() falls back to flat color until ready). */
-  registerGroundTexture(key: string, image: CanvasImageSource): void {
-    const pattern = this.ctx.createPattern(image, 'repeat');
-    if (pattern) this.groundPatterns.set(key, pattern);
+  /**
+   * Register a tileable ground texture. The image is baked once onto a
+   * plain canvas (pre-decoded, wash pre-applied) so begin() can tile it
+   * with a few plain drawImage calls — pattern fills with per-frame
+   * matrix transforms proved janky on some GPUs.
+   */
+  registerGroundTexture(key: string, image: HTMLImageElement, wash: string): void {
+    const tile = document.createElement('canvas');
+    tile.width = image.naturalWidth;
+    tile.height = image.naturalHeight;
+    const tctx = tile.getContext('2d')!;
+    tctx.drawImage(image, 0, 0);
+    tctx.fillStyle = wash;
+    tctx.fillRect(0, 0, tile.width, tile.height);
+    this.groundTiles.set(key, tile);
   }
 
   /** camX/camY = world coords of the view CENTER. */
@@ -52,15 +63,18 @@ export class Renderer {
     this.ctx.fillStyle = bg;
     this.ctx.fillRect(0, 0, this.viewW, this.viewH);
     if (textureKey) {
-      const pattern = this.groundPatterns.get(textureKey);
-      if (pattern) {
-        // Scroll the texture with the camera, then dim it back toward the
-        // stage color so sprites stay readable on top.
-        pattern.setTransform(new DOMMatrix().translate(-this.camX, -this.camY));
-        this.ctx.fillStyle = pattern;
-        this.ctx.fillRect(0, 0, this.viewW, this.viewH);
-        this.ctx.fillStyle = bg + '99'; // ~60% stage-color wash
-        this.ctx.fillRect(0, 0, this.viewW, this.viewH);
+      const tile = this.groundTiles.get(textureKey);
+      if (tile) {
+        // Tile the pre-baked texture with plain integer-offset blits.
+        const tw = tile.width;
+        const th = tile.height;
+        const ox = -(((this.camX % tw) + tw) % tw) | 0;
+        const oy = -(((this.camY % th) + th) % th) | 0;
+        for (let y = oy; y < this.viewH; y += th) {
+          for (let x = ox; x < this.viewW; x += tw) {
+            this.ctx.drawImage(tile, x, y);
+          }
+        }
       }
     }
   }
@@ -99,6 +113,17 @@ export class Renderer {
     }
     this.ctx.drawImage(this._atlas!.source, frame.sx, frame.sy, frame.w, frame.h, dx, dy, w, h);
     this.drawCalls++;
+  }
+
+  /** Tiny world-space bar (player HP, boss HP) — two rects, cheap. */
+  barWorld(wx: number, wy: number, w: number, h: number, frac: number, back: string, front: string): void {
+    const dx = (wx - this.camX - w / 2) | 0;
+    const dy = (wy - this.camY) | 0;
+    if (dx + w < 0 || dy + h < 0 || dx > this.viewW || dy > this.viewH) return;
+    this.ctx.fillStyle = back;
+    this.ctx.fillRect(dx, dy, w, h);
+    this.ctx.fillStyle = front;
+    this.ctx.fillRect(dx, dy, Math.round(w * Math.max(0, Math.min(1, frac))), h);
   }
 
   worldToScreenX(wx: number): number {
