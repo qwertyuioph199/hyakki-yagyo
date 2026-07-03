@@ -3,26 +3,65 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>百鬼夜行 HYAKKI YAGYO — 夜明けまで生き延びろ</title>
-  <meta name="description" content="陰陽師となり、百鬼夜行の夜を夜明けまで生き延びるサバイバーアクション。ブラウザで無料プレイ。" />
+  <title>百鬼夜行 HYAKKI YAGYO — 夜明けまで生き延びろ|ブラウザで無料</title>
+  <meta name="description" content="陰陽師となり、百鬼夜行の夜を夜明けまで生き延びるサバイバーアクション。インストール不要、ブラウザで今すぐ無料プレイ。" />
+  <meta property="og:title" content="百鬼夜行 HYAKKI YAGYO" />
+  <meta property="og:description" content="妖怪の大群を薙ぎ払い、夜明け(30分)まで生き延びるサバイバーアクション。" />
   <style>
-    :root { --ink:#0b0b12; --paper:#e8e2d0; --lantern:#e8a33d; --spirit:#5fd3c4; }
+    :root { --ink:#0b0b12; --soft:#16161f; --paper:#e8e2d0; --lantern:#e8a33d; --spirit:#5fd3c4; --gold:#f5c542; --ghost:#9fb8c9; }
     * { margin:0; box-sizing:border-box; }
-    body { background:var(--ink); color:var(--paper); font-family:'Segoe UI', 'Hiragino Sans', 'Yu Gothic', sans-serif;
-           min-height:100vh; display:flex; align-items:center; justify-content:center; }
-    main { text-align:center; padding:2rem; }
-    h1 { font-size:3rem; letter-spacing:.3em; color:var(--lantern); }
-    p  { margin:1rem 0 2rem; opacity:.8; }
-    a.play { display:inline-block; padding:1rem 3rem; border:2px solid var(--lantern); color:var(--lantern);
-             text-decoration:none; font-size:1.2rem; letter-spacing:.2em; transition:.2s; }
-    a.play:hover { background:var(--lantern); color:var(--ink); }
+    body { background:var(--ink); color:var(--paper); font-family:'Segoe UI','Hiragino Sans','Yu Gothic',sans-serif; line-height:1.7; }
+    .hero { min-height:88vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:2rem;
+            background: radial-gradient(ellipse at 50% 30%, #1a1526 0%, var(--ink) 65%); }
+    h1 { font-size: clamp(3rem, 9vw, 5.5rem); letter-spacing:.28em; color:var(--lantern); text-shadow:0 0 40px rgba(232,163,61,.35); }
+    .sub { margin:.8rem 0 2.4rem; color:var(--ghost); letter-spacing:.4em; font-size:clamp(.8rem,2vw,1rem); }
+    a.play { display:inline-block; padding:1.1rem 4rem; border:2px solid var(--lantern); color:var(--ink); background:var(--lantern);
+             text-decoration:none; font-size:1.25rem; letter-spacing:.25em; font-weight:bold; transition:.15s; }
+    a.play:hover { background:transparent; color:var(--lantern); }
+    .free { margin-top:.9rem; font-size:.8rem; color:var(--ghost); }
+    section { max-width:880px; margin:0 auto; padding:4rem 1.5rem; }
+    h2 { color:var(--spirit); letter-spacing:.2em; margin-bottom:1.2rem; font-size:1.3rem; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:1rem; }
+    .card { background:var(--soft); border:1px solid #23232e; padding:1.2rem 1.1rem; font-size:.92rem; }
+    .card b { color:var(--lantern); display:block; margin-bottom:.4rem; }
+    .roadmap li { margin:.4rem 0 .4rem 1.2rem; font-size:.92rem; }
+    .roadmap .done { color:var(--spirit); }
+    .roadmap .todo { color:var(--ghost); }
+    footer { text-align:center; padding:2.5rem 1rem; color:#5a5a6a; font-size:.78rem; border-top:1px solid #1b1b26; }
+    footer a { color:var(--ghost); }
   </style>
 </head>
 <body>
-  <main>
+  <div class="hero">
     <h1>百鬼夜行</h1>
-    <p>夜明けまで、生き延びろ。(開発中 — ランディングページはP7で完成)</p>
-    <a class="play" href="./play/">今すぐ遊ぶ</a>
-  </main>
+    <div class="sub">HYAKKI YAGYO — 夜明けまで、生き延びろ。</div>
+    <a class="play" href="./play/">今すぐ遊ぶ(無料)</a>
+    <div class="free">インストール不要・ブラウザで動作・セーブはお使いの端末に保存されます</div>
+  </div>
+
+  <section>
+    <h2>夜は、群れでやってくる</h2>
+    <div class="grid">
+      <div class="card"><b>一夜 = 30分</b>提灯お化けから鬼まで、分刻みで濃くなる妖怪の大群。武器は自動で戦う。あなたは「位置取り」と「選択」で生き延びる。</div>
+      <div class="card"><b>武器進化</b>10種の武器を最大まで鍛え、対の護符を持って宝箱を開けば——大祓、百八煩悩、九尾業火。夜の主導権が入れ替わる。</div>
+      <div class="card"><b>護符で強くなる</b>倒れても文(かね)は残る。19種の護符に注ぎ込み、次の夜はもっと深くへ。買うたび全品が値上がるので、買い順にも知恵が要る。</div>
+      <div class="card"><b>6人の夜行者</b>陰陽師、巫女、浪人、僧兵、狐憑き、傀儡師。開始武器と体質が違えば、夜の攻略もまるで別物。</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>ロードマップ</h2>
+    <ul class="roadmap">
+      <li class="done">✅ v1.0 — Web版公開(1ステージ・武器10+進化10・妖17種・キャラ6人)</li>
+      <li class="todo">◻ v1.1 — 実績・図鑑・追加ステージ「雪女の峠」</li>
+      <li class="todo">◻ v1.2 — 有料フル版(itch.io / Steam):追加キャラ・裏ボス・エンドレス</li>
+      <li class="todo">◻ モバイル対応(タッチ操作)</li>
+    </ul>
+  </section>
+
+  <footer>
+    © 2026 HYAKKI YAGYO project — 個人開発。素材・名称はすべてオリジナル。<br />
+    お問い合わせ・不具合報告は <a href="https://github.com/">GitHub Issues</a> へ(公開後にリンク差し替え)
+  </footer>
 </body>
 </html>
