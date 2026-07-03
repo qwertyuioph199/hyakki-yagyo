@@ -1,46 +1,23 @@
-import type { World } from '../game/sim/world';
+import { PASSIVES, type PassiveId } from '../data/passives';
+import { WEAPONS, type WeaponId } from '../data/weapons';
+import {
+  applyDraftChoice,
+  banishChoice,
+  currentDraft,
+  rerollDraft,
+  skipDraft,
+} from '../game/sim/levelUpSystem';
+import type { DraftChoice, World } from '../game/sim/world';
 
 /**
- * Level-up draft overlay. P2 stub: three fixed choices proving the
- * pause→choose→resume plumbing (the sim freezes itself while
- * pendingLevelUps > 0). P3 replaces the choice list with the RE'd
- * weighted draft generator + reroll/skip/banish.
+ * Level-up draft overlay, driven entirely by sim state: the sim freezes
+ * while pendingLevelUps > 0; choices come from the deterministic generator
+ * in levelUpSystem (world.rng), so bot and UI runs replay identically.
  */
-interface DraftChoice {
-  title: string;
-  desc: string;
-  apply(world: World): void;
-}
-
-const STUB_CHOICES: DraftChoice[] = [
-  {
-    title: '御札 強化',
-    desc: '御札のレベル +1',
-    apply(world) {
-      const w = world.player.weapons.find((x) => x.id === 'ofuda');
-      if (w) w.level++;
-    },
-  },
-  {
-    title: '体力増強',
-    desc: '最大HP +10、HP +10',
-    apply(world) {
-      world.player.stats.maxHp += 10;
-      world.player.hp = Math.min(world.player.stats.maxHp, world.player.hp + 10);
-    },
-  },
-  {
-    title: '健脚',
-    desc: '移動速度 +5%',
-    apply(world) {
-      world.player.stats.moveSpeed += 0.05;
-    },
-  },
-];
-
 export class DraftUi {
   private readonly el: HTMLDivElement;
   private world: World | null = null;
+  private banishMode = false;
 
   constructor(root: HTMLElement) {
     this.el = document.createElement('div');
@@ -50,37 +27,107 @@ export class DraftUi {
     root.appendChild(this.el);
   }
 
-  /** Call every frame; shows itself whenever the sim has pending level-ups. */
   sync(world: World): void {
     this.world = world;
-    const shouldShow = world.player.pendingLevelUps > 0 && !world.gameOver;
+    const draft = currentDraft(world);
     const shown = this.el.style.display !== 'none';
-    if (shouldShow && !shown) this.show();
-    else if (!shouldShow && shown) this.el.style.display = 'none';
+    if (draft && !shown) {
+      this.banishMode = false;
+      this.render(draft);
+    } else if (!draft && shown) {
+      this.el.style.display = 'none';
+    }
   }
 
-  private show(): void {
+  private label(c: DraftChoice): { title: string; desc: string } {
+    switch (c.kind) {
+      case 'weapon': {
+        const def = WEAPONS[c.id as WeaponId];
+        return {
+          title: `${def.name}${c.toLevel > 1 ? ` Lv${c.toLevel}` : ' (新)'}`,
+          desc: def.desc,
+        };
+      }
+      case 'passive': {
+        const def = PASSIVES[c.id as PassiveId];
+        return {
+          title: `${def.name}${c.toLevel > 1 ? ` Lv${c.toLevel}` : ' (新)'}`,
+          desc: def.desc,
+        };
+      }
+      case 'gold':
+        return { title: `金 +${c.toLevel}`, desc: '路銀の足しに。' };
+      case 'food':
+        return { title: '御饌', desc: `HP +${c.toLevel} 回復` };
+    }
+  }
+
+  private render(draft: DraftChoice[]): void {
+    const w = this.world!;
+    const s = w.player.stats;
     this.el.innerHTML = `
       <div style="text-align:center;">
-        <h2 style="color:#e8a33d;letter-spacing:.3em;margin-bottom:16px;">力を選べ</h2>
-        <div style="display:flex;gap:12px;justify-content:center;"></div>
+        <h2 style="color:#e8a33d;letter-spacing:.3em;margin-bottom:6px;">力を選べ</h2>
+        <div style="color:#9fb8c9;font-size:11px;margin-bottom:14px;" class="hy-banish-hint"></div>
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;" class="hy-cards"></div>
+        <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;" class="hy-tools"></div>
       </div>`;
-    const row = this.el.querySelector('div > div')!;
-    for (const choice of STUB_CHOICES) {
+    const cards = this.el.querySelector('.hy-cards')!;
+    const tools = this.el.querySelector('.hy-tools')!;
+    const hint = this.el.querySelector('.hy-banish-hint') as HTMLElement;
+    hint.textContent = this.banishMode ? '祓う対象を選べ(バニッシュ)' : '';
+
+    for (const choice of draft) {
+      const { title, desc } = this.label(choice);
       const card = document.createElement('button');
       card.style.cssText =
-        'width:170px;padding:18px 12px;background:#16161f;border:2px solid #e8a33d;color:#f2ead8;' +
-        'cursor:pointer;text-align:center;font-family:inherit;';
-      card.innerHTML = `<div style="color:#e8a33d;font-size:15px;margin-bottom:8px;">${choice.title}</div><div style="font-size:12px;opacity:.8;">${choice.desc}</div>`;
+        `width:170px;padding:18px 12px;background:#16161f;border:2px solid ${this.banishMode ? '#b03a3a' : '#e8a33d'};` +
+        'color:#f2ead8;cursor:pointer;text-align:center;font-family:inherit;';
+      card.innerHTML = `<div style="color:${this.banishMode ? '#b03a3a' : '#e8a33d'};font-size:15px;margin-bottom:8px;">${title}</div><div style="font-size:12px;opacity:.8;">${desc}</div>`;
       card.onclick = () => {
-        const w = this.world;
-        if (!w) return;
-        choice.apply(w);
-        w.player.pendingLevelUps--;
-        this.sync(w);
+        if (!this.world) return;
+        if (this.banishMode) {
+          if (banishChoice(this.world, choice)) {
+            this.banishMode = false;
+            const next = currentDraft(this.world);
+            if (next) this.render(next);
+          }
+        } else {
+          applyDraftChoice(this.world, choice);
+          this.sync(this.world);
+        }
       };
-      row.appendChild(card);
+      cards.appendChild(card);
     }
+
+    const tool = (label: string, count: number, fn: () => void) => {
+      const b = document.createElement('button');
+      b.style.cssText =
+        'padding:8px 16px;background:#0b0b12;border:1px solid #5fd3c4;color:#5fd3c4;cursor:pointer;font-family:inherit;font-size:12px;';
+      b.textContent = `${label} (${count})`;
+      if (count <= 0) {
+        b.style.opacity = '0.35';
+        b.style.cursor = 'default';
+      } else {
+        b.onclick = fn;
+      }
+      tools.appendChild(b);
+    };
+    tool('リロール', s.reroll, () => {
+      if (this.world && rerollDraft(this.world)) {
+        const next = currentDraft(this.world);
+        if (next) this.render(next);
+      }
+    });
+    tool('スキップ', s.skip, () => {
+      if (this.world && skipDraft(this.world)) this.sync(this.world);
+    });
+    tool('バニッシュ', s.banish, () => {
+      this.banishMode = !this.banishMode;
+      const cur = currentDraft(this.world!);
+      if (cur) this.render(cur);
+    });
+
     this.el.style.display = 'flex';
   }
 }

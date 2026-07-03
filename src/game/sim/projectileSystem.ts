@@ -1,6 +1,6 @@
 import { TICK_DT } from '../../engine/loop';
 import { Ev } from './events';
-import type { Enemy, Projectile, World } from './world';
+import { PickupKind, type Enemy, type Projectile, type World } from './world';
 
 const PROJECTILE_HIT_RADIUS = 10;
 /** Query pad so large-radius enemies at the edge are still found. */
@@ -77,7 +77,18 @@ function damageEnemy(world: World, enemyIdx: number, enemy: Enemy, proj: Project
   if (enemy.hp <= 0) {
     world.events.emit(Ev.EnemyDied, enemy.x, enemy.y, enemy.typeIdx, 0);
     world.player.kills++;
-    spawnGem(world, enemy.x, enemy.y, enemy.xp);
+    if (enemy.boss) {
+      const chest = world.pickups.alloc();
+      if (chest) {
+        chest.x = enemy.x;
+        chest.y = enemy.y;
+        chest.kind = PickupKind.Chest;
+        chest.value = 0;
+        world.events.emit(Ev.ChestSpawned, enemy.x, enemy.y, 0, 0);
+      }
+    } else {
+      spawnGem(world, enemy.x, enemy.y, enemy.xp);
+    }
     world.enemies.free(enemyIdx);
   }
 }

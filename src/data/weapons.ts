@@ -20,6 +20,7 @@ export const WEAPONS = {
     speed: 1,
     duration: 0.6,
     knockback: 1,
+    weight: 100,
     levels: [
       { amount: 1 },
       { damage: 5 },
@@ -29,6 +30,24 @@ export const WEAPONS = {
       { damage: 5 },
       { damage: 5, area: 0.1 },
     ],
+  },
+  // Evolution: 御札 + 神饌の米 → 百鬼封印 (chest-only).
+  hyakkiSeal: {
+    name: '百鬼封印',
+    desc: '御札の進化形。貫通する大札が敵を薙ぎ払う。',
+    behavior: 'aimedProjectile',
+    sprite: 'shot_hyakki_seal',
+    baseDamage: 45,
+    cooldown: 1.1,
+    amount: 3,
+    pierce: 8,
+    area: 1.4,
+    speed: 1.2,
+    duration: 0.8,
+    knockback: 1.4,
+    weight: 0,
+    evolutionOnly: true,
+    levels: [],
   },
 } as const satisfies Record<string, WeaponDef>;
 

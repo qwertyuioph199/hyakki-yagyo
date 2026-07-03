@@ -38,6 +38,8 @@ export interface Enemy {
   knockbackResist: number;
   /** Ticks of white hit-flash remaining (read by presentation). */
   hitFlash: number;
+  /** Minibosses drop a chest and ignore knockback/despawn recycling. */
+  boss: boolean;
 }
 
 export interface Projectile {
@@ -70,6 +72,29 @@ export interface Gem {
   value: number;
   /** True once inside magnet radius — then it flies to the player. */
   magnetized: boolean;
+}
+
+export const enum PickupKind {
+  Chest = 0,
+  Food = 1,
+  Coin = 2,
+  Vacuum = 3,
+  Bomb = 4,
+}
+
+export interface Pickup {
+  x: number;
+  y: number;
+  kind: PickupKind;
+  /** Food heal amount / coin value. */
+  value: number;
+}
+
+export interface DraftChoice {
+  kind: 'weapon' | 'passive' | 'gold' | 'food';
+  id: string;
+  /** Resulting level if taken (1 = new item). */
+  toLevel: number;
 }
 
 export interface WeaponInstance {
@@ -119,6 +144,7 @@ export interface World {
   enemies: Pool<Enemy>;
   projectiles: Pool<Projectile>;
   gems: Pool<Gem>;
+  pickups: Pool<Pickup>;
   enemyHash: SpatialHash;
   events: EventQueue;
   /** Shared neighbor-query scratch buffer. */
@@ -126,8 +152,14 @@ export interface World {
   nextEnemyUid: number;
   gameOver: boolean;
   victory: boolean;
-  /** P2 placeholder spawner state; replaced by the wave interpreter in P3. */
+  /** Ticks between spawn batches (wave interpreter state). */
   spawnTimer: number;
+  /** Last minute whose one-shot events (swarm/boss) fired. */
+  waveMinute: number;
+  /** Current level-up draft (generated lazily while pendingLevelUps > 0). */
+  draft: DraftChoice[] | null;
+  /** Item ids banished from this run's draft pool. */
+  banished: string[];
 }
 
 export function baseStats(): Stats {
@@ -200,6 +232,7 @@ export function createRun(config: RunConfig): World {
       xp: 1,
       knockbackResist: 0,
       hitFlash: 0,
+      boss: false,
     })),
     projectiles: new Pool<Projectile>(CAP.projectiles, () => ({
       x: 0,
@@ -221,6 +254,7 @@ export function createRun(config: RunConfig): World {
       hitCount: 0,
     })),
     gems: new Pool<Gem>(CAP.gems, () => ({ x: 0, y: 0, px: 0, py: 0, value: 1, magnetized: false })),
+    pickups: new Pool<Pickup>(CAP.pickups, () => ({ x: 0, y: 0, kind: PickupKind.Chest, value: 0 })),
     enemyHash: new SpatialHash(48, CAP.enemies),
     events: new EventQueue(),
     scratch: new Int32Array(64),
@@ -228,5 +262,8 @@ export function createRun(config: RunConfig): World {
     gameOver: false,
     victory: false,
     spawnTimer: 0,
+    waveMinute: -1,
+    draft: null,
+    banished: [],
   };
 }

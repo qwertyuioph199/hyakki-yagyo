@@ -25,7 +25,7 @@ export interface Stats {
   amount: number;
   /** Movement speed multiplier. */
   moveSpeed: number;
-  /** Pickup attraction radius in px. */
+  /** Pickup attraction radius multiplier (base radius in pickupSystem). */
   magnet: number;
   luck: number;
   /** XP gain multiplier. */
@@ -85,6 +85,10 @@ export interface WeaponDef {
   knockback: number;
   /** Deltas applied when the weapon levels up: levels[0] = level 2. */
   levels: readonly WeaponLevelDelta[];
+  /** Draft rarity weight (100 = common). */
+  weight: number;
+  /** Evolved weapons never appear in the draft. */
+  evolutionOnly?: boolean;
 }
 
 export interface PassiveDef {
@@ -95,6 +99,8 @@ export interface PassiveDef {
   /** Added to the stat per level. */
   perLevel: number;
   maxLevel: number;
+  /** Draft rarity weight (100 = common). */
+  weight: number;
 }
 
 export interface EnemyDef {
@@ -118,4 +124,44 @@ export interface CharacterDef {
   bonuses: Partial<Stats>;
   baseHp: number;
   baseMoveSpeed: number;
+  /** Gold cost to unlock (0 = starter). */
+  unlockCost: number;
+}
+
+export interface EvolutionDef {
+  /** Base weapon that evolves (must be max level). */
+  weapon: string;
+  /** Passive that must be owned (any level). */
+  requires: string;
+  /** The evolved weapon id. */
+  into: string;
+  /** Earliest run-minute a chest may grant this evolution. */
+  minMinute: number;
+}
+
+/** One per-minute row of a stage's spawn table. */
+export interface WaveDef {
+  /** The spawner keeps at least this many enemies alive. */
+  minAlive: number;
+  /** Ticks between spawn batches. */
+  interval: number;
+  /** Enemy ids spawning this minute (uniform pick). */
+  pool: readonly string[];
+  /** Optional one-shot swarm event fired at the start of the minute. */
+  swarm?: { enemy: string; count: number; formation: 'wall' | 'ring' };
+  /** Optional miniboss spawned at the start of the minute (drops a chest). */
+  boss?: string;
+}
+
+/** Meta-progression PowerUp (gold shop), mirrors the VS PowerUp matrix. */
+export interface PowerUpDef {
+  name: string;
+  desc: string;
+  stat: StatKey;
+  perRank: number;
+  maxRank: number;
+  /** Gold cost of rank 1 (escalation rule in meta/shop.ts). */
+  baseCost: number;
+  /** Display/purchase order — price escalation counts total ranks bought. */
+  order: number;
 }
