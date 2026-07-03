@@ -64,6 +64,23 @@ export class Renderer {
     this.ctx.globalAlpha = 1;
   }
 
+  /**
+   * Scaled blit — reserved for the few variable-radius effects (auras,
+   * zones). Everything else stays on the unscaled fast path.
+   */
+  blitScaled(frame: SpriteFrame, wx: number, wy: number, scale: number): void {
+    const w = frame.w * scale;
+    const h = frame.h * scale;
+    const dx = (wx - this.camX - frame.ox * scale) | 0;
+    const dy = (wy - this.camY - frame.oy * scale) | 0;
+    if (dx + w < -CULL_MARGIN || dy + h < -CULL_MARGIN || dx > this.viewW + CULL_MARGIN || dy > this.viewH + CULL_MARGIN) {
+      this.culled++;
+      return;
+    }
+    this.ctx.drawImage(this._atlas!.source, frame.sx, frame.sy, frame.w, frame.h, dx, dy, w, h);
+    this.drawCalls++;
+  }
+
   worldToScreenX(wx: number): number {
     return wx - this.camX;
   }

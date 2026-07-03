@@ -1,8 +1,11 @@
 import { PAL } from '../../art/palette';
+import { ENEMY_LIST } from '../../data/enemies';
+import { WEAPONS, type WeaponId } from '../../data/weapons';
 import type { Camera } from '../../engine/camera';
 import type { Renderer } from '../../engine/renderer';
 import { Ev } from '../sim/events';
-import type { World } from '../sim/world';
+import { collectLevels } from '../sim/weaponSystem';
+import { PickupKind, ProjKind, type World } from '../sim/world';
 
 /**
  * Draws the world and owns all presentation-only state (floating damage
@@ -44,7 +47,7 @@ export class RunPresenter {
       switch (e.type) {
         case Ev.DamageDealt:
           if (this.texts.length < TEXT_CAP) {
-            this.texts.push({ x: e.x, y: e.y - 10, value: Math.round(e.a), ttl: TEXT_TTL, gold: e.a >= 50 });
+            this.texts.push({ x: e.x, y: e.y - 10, value: Math.round(e.a), ttl: TEXT_TTL, gold: e.a >= 60 });
           }
           break;
         case Ev.EnemyDied:
@@ -52,6 +55,13 @@ export class RunPresenter {
           break;
         case Ev.PlayerHurt:
           this.camera.addShake(0.35);
+          break;
+        case Ev.ChestOpened:
+        case Ev.EvolutionUnlocked:
+          this.camera.addShake(0.25);
+          break;
+        case Ev.BossSpawned:
+          this.camera.addShake(0.5);
           break;
         default:
           break;
@@ -82,35 +92,86 @@ export class RunPresenter {
       }
     }
 
-    // Gems under everything else.
-    const gemF0 = atlas.frame('gem', (world.tick >> 4) & 1);
-    for (let i = 0; i < world.gems.count; i++) {
-      const g = world.gems.items[i]!;
-      r.blit(gemF0, g.px + (g.x - g.px) * alpha, g.py + (g.y - g.py) * alpha);
+    // Ground zones (under everything).
+    for (let i = 0; i < world.projectiles.count; i++) {
+      const proj = world.projectiles.items[i]!;
+      if (proj.kind !== ProjKind.Zone) continue;
+      const def = this.weaponDef(world, proj.weaponIdx);
+      const frame = atlas.frame(def?.sprite ?? 'fx_zone', (world.tick >> 4) & 1);
+      r.blitScaled(frame, proj.x, proj.y, (proj.radius * 2) / frame.w);
     }
 
-    // Enemies (per-type batches when more types exist).
+    // Aura rings (kekkai-family weapons draw directly from ownership).
+    for (let w = 0; w < p.weapons.length; w++) {
+      const inst = p.weapons[w]!;
+      const def = WEAPONS[inst.id as WeaponId];
+      if (!def || def.behavior !== 'aura') continue;
+      const lv = collectLevels(inst.id as WeaponId, inst.level);
+      const radius = 68 * (def.area + lv.area) * p.stats.area;
+      const frame = atlas.frame(def.sprite, (world.tick >> 4) & 1);
+      r.blitScaled(frame, camX - this.camera.offsetX, camY - this.camera.offsetY, (radius * 2) / frame.w);
+    }
+
+    // Gems (tier by value: 1 / <10 / >=10).
+    for (let i = 0; i < world.gems.count; i++) {
+      const g = world.gems.items[i]!;
+      const tier = g.value >= 10 ? 2 : g.value > 1 ? 1 : 0;
+      r.blit(atlas.frame('gem', tier), g.px + (g.x - g.px) * alpha, g.py + (g.y - g.py) * alpha);
+    }
+
+    // Pickups.
+    for (let i = 0; i < world.pickups.count; i++) {
+      const item = world.pickups.items[i]!;
+      const id =
+        item.kind === PickupKind.Chest
+          ? 'pickup_chest'
+          : item.kind === PickupKind.Food
+            ? 'pickup_food'
+            : item.kind === PickupKind.Coin
+              ? 'pickup_coin'
+              : item.kind === PickupKind.Vacuum
+                ? 'pickup_vacuum'
+                : 'pickup_bomb';
+      r.blit(atlas.frame(id, (world.tick >> 4) & 1), item.x, item.y);
+    }
+
+    // Enemies (typeIdx → sprite id; last frame = hit flash).
     for (let i = 0; i < world.enemies.count; i++) {
       const e = world.enemies.items[i]!;
+      const def = ENEMY_LIST[e.typeIdx];
+      const spriteId = def?.sprite ?? 'enemy_hitodama';
+      const animFrames = atlas.frameCount(spriteId) - 1;
       const frame =
         e.hitFlash > 0
-          ? atlas.frame('enemy_hitodama', 2)
-          : atlas.frame('enemy_hitodama', ((world.tick + e.uid * 7) >> 3) & 1);
+          ? atlas.frame(spriteId, animFrames)
+          : atlas.frame(spriteId, ((world.tick + e.uid * 7) >> 3) % Math.max(1, animFrames));
       r.blit(frame, e.px + (e.x - e.px) * alpha, e.py + (e.y - e.py) * alpha);
     }
 
     // Player (blink while invulnerable).
     if (p.iframes === 0 || (world.tick & 3) < 2) {
       const moving = p.x !== p.px || p.y !== p.py;
-      const heroFrame = atlas.frame('hero', moving ? (world.tick >> 3) & 1 : 0);
+      const heroFrame = atlas.frame(world.charDef.sprite, moving ? (world.tick >> 3) & 1 : 0);
       r.blit(heroFrame, camX - this.camera.offsetX, camY - this.camera.offsetY);
     }
 
-    // Projectiles.
+    // Projectiles (non-zone kinds).
     for (let i = 0; i < world.projectiles.count; i++) {
       const proj = world.projectiles.items[i]!;
-      const frame = atlas.frame('shot_ofuda', (world.tick >> 2) & 1);
-      r.blit(frame, proj.px + (proj.x - proj.px) * alpha, proj.py + (proj.y - proj.py) * alpha);
+      if (proj.kind === ProjKind.Zone) continue;
+      const def = this.weaponDef(world, proj.weaponIdx);
+      const spriteId = def?.sprite ?? 'shot_ofuda';
+      const ix = proj.px + (proj.x - proj.px) * alpha;
+      const iy = proj.py + (proj.y - proj.py) * alpha;
+      if (proj.kind === ProjKind.Slash) {
+        r.blit(atlas.frame(spriteId, proj.spriteIdx), ix, iy);
+      } else if (proj.kind === ProjKind.Bolt) {
+        const frame = atlas.frame(spriteId, (world.tick >> 2) & 1);
+        r.blitAlpha(frame, ix, iy - 20, Math.min(1, proj.ttl / 6));
+      } else {
+        const frames = atlas.frameCount(spriteId);
+        r.blit(atlas.frame(spriteId, frames > 1 ? (world.tick >> 2) % frames : 0), ix, iy);
+      }
     }
 
     // Death poofs.
@@ -144,5 +205,10 @@ export class RunPresenter {
         r.blit(atlas.frame(`digit_${d}`, t.gold ? 1 : 0), t.x - totalW / 2 + c * 7, t.y);
       }
     }
+  }
+
+  private weaponDef(world: World, weaponIdx: number) {
+    const inst = world.player.weapons[weaponIdx];
+    return inst ? WEAPONS[inst.id as WeaponId] : undefined;
   }
 }

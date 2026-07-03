@@ -13,8 +13,25 @@ import type { World } from './world';
  * - Enemies farther than DESPAWN_RADIUS teleport back onto the spawn ring
  *   (VS's recycling trick — the horde never falls behind).
  */
+const DAWN_TICK = 30 * 60 * TICK_RATE; // 30:00 — tick 108,000
+const SWEEPER_INTERVAL = 8 * TICK_RATE;
+
 export function spawnSystem(world: World): void {
   const minute = Math.floor(world.tick / (TICK_RATE * 60));
+
+  // Dawn (MECHANICS.md §2): victory at exactly 30:00, then the unkillable
+  // First Light floods in on a fixed interval — the Reaper mirror.
+  if (world.tick >= DAWN_TICK) {
+    if (!world.victory) {
+      world.victory = true;
+      world.events.emit(Ev.DawnBreaks, world.player.x, world.player.y, 0, 0);
+    }
+    if (world.tick % SWEEPER_INTERVAL === 0) {
+      spawnEnemyAt(world, 'akatsuki', world.rng.float(0, Math.PI * 2), true);
+    }
+    return; // normal waves end at dawn
+  }
+
   const wave = STAGE_WAVES[Math.min(minute, STAGE_WAVES.length - 1)]!;
 
   // One-shot minute-boundary events.

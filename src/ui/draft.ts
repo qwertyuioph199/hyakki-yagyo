@@ -39,6 +39,10 @@ export class DraftUi {
     }
   }
 
+  destroy(): void {
+    this.el.remove();
+  }
+
   private label(c: DraftChoice): { title: string; desc: string } {
     switch (c.kind) {
       case 'weapon': {

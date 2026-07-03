@@ -13,10 +13,12 @@ import type { World } from './world';
  * wall-clock, no Math.random.
  *
  * While a level-up draft is pending the sim freezes (VS pauses during the
- * draft); the UI resolves pendingLevelUps then stepping resumes.
+ * draft); the UI resolves pendingLevelUps then stepping resumes. Victory
+ * (dawn at 30:00) does NOT freeze the sim — the sweeper hunts you through
+ * the sunrise, exactly like the original's Reaper.
  */
 export function stepRun(world: World, input: TickInput): void {
-  if (world.gameOver || world.victory || world.player.pendingLevelUps > 0) return;
+  if (world.gameOver || world.player.pendingLevelUps > 0) return;
 
   world.tick++;
   world.events.clear();

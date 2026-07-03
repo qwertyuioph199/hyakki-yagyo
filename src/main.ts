@@ -1,5 +1,6 @@
+import { startSpriteReview } from './debug/spriteReview';
 import { startStress } from './debug/stress';
-import { startRunScene } from './game/scenes/runScene';
+import { startGame } from './game/scenes/game';
 
 const VIEW_W = 960;
 const VIEW_H = 540;
@@ -17,8 +18,8 @@ fitCanvas();
 
 if (location.hash === '#perf') {
   startStress(canvas, uiRoot);
+} else if (location.hash === '#sprites') {
+  startSpriteReview(canvas);
 } else {
-  // Title scene + character select arrive in P4; until then boot straight
-  // into a run with a fixed seed.
-  startRunScene(canvas, uiRoot, 20260702);
+  startGame(canvas, uiRoot);
 }
