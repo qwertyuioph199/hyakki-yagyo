@@ -131,6 +131,20 @@ export interface DraftChoice {
   toLevel: number;
 }
 
+export interface ChestRevealItem {
+  sprite: string;
+  name: string;
+  sub: string;
+}
+
+/** Pending treasure-chest opening (freezes the sim until dismissed). */
+export interface ChestReveal {
+  items: ChestRevealItem[];
+  gold: number;
+  /** 1–5 — number of powers, drives the fanfare intensity. */
+  tier: number;
+}
+
 export interface WeaponInstance {
   id: string;
   level: number;
@@ -192,6 +206,8 @@ export interface World {
   waveMinute: number;
   /** Current level-up draft (generated lazily while pendingLevelUps > 0). */
   draft: DraftChoice[] | null;
+  /** Pending chest opening; freezes the sim until the UI/bot dismisses it. */
+  chestReveal: ChestReveal | null;
   /** Item ids banished from this run's draft pool. */
   banished: string[];
   /** Stat-source config, needed whenever stats are recomputed mid-run. */
@@ -319,6 +335,7 @@ export function createRun(config: RunConfig): World {
     spawnTimer: 0,
     waveMinute: -1,
     draft: null,
+    chestReveal: null,
     banished: [],
     charDef,
     powerUpBonuses: powerUps,

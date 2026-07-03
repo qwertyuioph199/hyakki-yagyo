@@ -19,12 +19,13 @@ function scriptedInput(tick: number): TickInput {
   return { moveX: Math.cos(ang), moveY: Math.sin(ang) };
 }
 
-/** Resolve drafts the moment they appear (choice 0 equivalent: weapon +1). */
+/** Resolve drafts + chest reveals the moment they appear (both freeze the sim). */
 function autoResolveDraft(world: World): void {
   while (world.player.pendingLevelUps > 0) {
     world.player.weapons[0]!.level++;
     world.player.pendingLevelUps--;
   }
+  if (world.chestReveal) world.chestReveal = null;
 }
 
 /** FNV-1a over the observable world state. */
@@ -104,7 +105,7 @@ describe('sim determinism', () => {
 });
 
 // Captured from the first green run of this suite (see test output).
-const GOLDEN_HASH_5K = 906102826;
+const GOLDEN_HASH_5K = 1274562780;
 
 it('prints the current golden hash for updating', () => {
   const { world } = runFor(20260702, 5_000);

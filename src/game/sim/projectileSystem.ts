@@ -149,23 +149,50 @@ export function damageEnemyContact(
       }
     } else {
       spawnGem(world, enemy.x, enemy.y, enemy.xp);
-      // RE §8: trash occasionally drops a coin (luck-scaled) so gold flows
-      // outside boss chests too.
-      if (world.rng.next() < COIN_DROP_CHANCE * world.player.stats.luck) {
-        const coin = world.pickups.alloc();
-        if (coin) {
-          coin.x = enemy.x;
-          coin.y = enemy.y;
-          coin.kind = PickupKind.Coin;
-          coin.value = 1 + world.rng.int(3);
-        }
-      }
+      rollEnemyDrop(world, enemy.x, enemy.y);
     }
     world.enemies.free(enemyIdx);
   }
 }
 
 const COIN_DROP_CHANCE = 0.02;
+const FOOD_DROP_CHANCE = 0.008;
+const CHEST_DROP_CHANCE = 0.0025;
+
+/**
+ * On a trash-enemy kill, roll (once, luck-scaled) for a bonus drop:
+ * coin > food (回復) > treasure chest. Bosses always drop a chest instead.
+ */
+function rollEnemyDrop(world: World, x: number, y: number): void {
+  const luck = world.player.stats.luck;
+  const r = world.rng.next();
+  if (r < CHEST_DROP_CHANCE * luck) {
+    const chest = world.pickups.alloc();
+    if (chest) {
+      chest.x = x;
+      chest.y = y;
+      chest.kind = PickupKind.Chest;
+      chest.value = 0;
+      world.events.emit(Ev.ChestSpawned, x, y, 0, 0);
+    }
+  } else if (r < (CHEST_DROP_CHANCE + FOOD_DROP_CHANCE) * luck) {
+    const food = world.pickups.alloc();
+    if (food) {
+      food.x = x;
+      food.y = y;
+      food.kind = PickupKind.Food;
+      food.value = Math.max(30, Math.round(world.player.stats.maxHp * 0.3));
+    }
+  } else if (r < (CHEST_DROP_CHANCE + FOOD_DROP_CHANCE + COIN_DROP_CHANCE) * luck) {
+    const coin = world.pickups.alloc();
+    if (coin) {
+      coin.x = x;
+      coin.y = y;
+      coin.kind = PickupKind.Coin;
+      coin.value = 1 + world.rng.int(3);
+    }
+  }
+}
 
 export function spawnGem(world: World, x: number, y: number, value: number): void {
   const gem = world.gems.alloc();

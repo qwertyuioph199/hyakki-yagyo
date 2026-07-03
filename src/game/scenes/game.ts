@@ -21,6 +21,7 @@ import { RunPresenter } from '../presentation/renderRun';
 import { Ev } from '../sim/events';
 import { stepRun } from '../sim/step';
 import { createRun, type World } from '../sim/world';
+import { ChestUi } from '../../ui/chest';
 import { DraftUi } from '../../ui/draft';
 import { Hud } from '../../ui/hud';
 
@@ -45,6 +46,7 @@ export class Game {
   private presenter: RunPresenter | null = null;
   private hud: Hud | null = null;
   private draft: DraftUi | null = null;
+  private chest: ChestUi | null = null;
   private perf: PerfHud;
   private paused = false;
   private resultShown = false;
@@ -67,6 +69,7 @@ export class Game {
       if (ov.size === 0) return;
       this.renderer.setAtlas(buildAtlas(spritesWithOverrides(ov)));
       this.hud?.setAtlas(this.renderer.atlas);
+      this.chest?.setAtlas(this.renderer.atlas);
       // eslint-disable-next-line no-console
       console.log(`[hyakki] AI sprite overrides loaded: ${[...ov.keys()].join(', ')}`);
     });
@@ -133,6 +136,7 @@ export class Game {
     this.presenter = new RunPresenter(this.renderer, this.camera);
     this.hud = new Hud(this.uiRoot, this.renderer.atlas);
     this.draft = new DraftUi(this.uiRoot);
+    this.chest = new ChestUi(this.uiRoot, this.renderer.atlas, (id) => this.sfx.play(id));
     this.resultShown = false;
     this.paused = false;
     this.screen.style.display = 'none';
@@ -145,6 +149,8 @@ export class Game {
     this.hud = null;
     this.draft?.destroy();
     this.draft = null;
+    this.chest?.destroy();
+    this.chest = null;
   }
 
   private endRun(): void {
@@ -214,6 +220,7 @@ export class Game {
       this.presenter.render(this.world, alpha);
       this.hud?.update(this.world);
       this.draft?.sync(this.world);
+      this.chest?.sync(this.world);
     }
     const now = performance.now();
     this.perf.record(now - this.lastFrame, this.simMs, now - t0);

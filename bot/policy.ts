@@ -103,4 +103,6 @@ export function botResolveDrafts(world: World): void {
     for (const c of draft) if (score(c) > score(best)) best = c;
     applyDraftChoice(world, best);
   }
+  // A chest reveal also freezes the sim; the bot instantly dismisses it.
+  if (world.chestReveal) world.chestReveal = null;
 }

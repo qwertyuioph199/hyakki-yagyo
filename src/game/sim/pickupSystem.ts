@@ -1,6 +1,6 @@
 import { TICK_DT } from '../../engine/loop';
 import { xpToNext } from '../../data/xp';
-import { openChest } from './chestSystem';
+import { buildChestReveal, openChest } from './chestSystem';
 import { Ev } from './events';
 import { PickupKind, type World } from './world';
 
@@ -46,9 +46,18 @@ export function pickupSystem(world: World): void {
     const dx = p.x - item.x;
     const dy = p.y - item.y;
     if (dx * dx + dy * dy > touchR * touchR) continue;
+    // A chest freezes the sim for its opening reveal; leave any further
+    // chests on the ground until this one is dismissed.
+    if (item.kind === PickupKind.Chest) {
+      if (world.chestReveal) continue;
+      world.chestReveal = buildChestReveal(openChest(world));
+      world.events.emit(Ev.PickupTaken, item.x, item.y, item.kind, 0);
+      world.pickups.free(i);
+      break;
+    }
     switch (item.kind) {
-      case PickupKind.Chest:
-        openChest(world);
+      case PickupKind.Food:
+        p.hp = Math.min(p.stats.maxHp, p.hp + item.value);
         break;
       case PickupKind.Food:
         p.hp = Math.min(p.stats.maxHp, p.hp + item.value);

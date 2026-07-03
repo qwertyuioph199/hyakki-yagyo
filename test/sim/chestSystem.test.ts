@@ -1,39 +1,48 @@
 import { describe, expect, it } from 'vitest';
-import { eligibleEvolution, openChest } from '../../src/game/sim/chestSystem';
+import { chestRolls, eligibleEvolution, openChest } from '../../src/game/sim/chestSystem';
+import { TICK_RATE } from '../../src/engine/loop';
 import { createRun } from '../../src/game/sim/world';
 
 /** MECHANICS.md §7 — treasure chest algorithm. */
 describe('chest algorithm (RE §7)', () => {
-  it('roll distribution matches P(5)=0.004·luck, P(3)=0.036·luck', () => {
+  it('power count scales 1..5 with elapsed time', () => {
     const world = createRun({ seed: 123 });
-    world.player.weapons = [{ id: 'ofuda', level: 1, cooldown: 0, state: 0 }];
-    const counts = { 1: 0, 3: 0, 5: 0 };
-    const N = 20000;
-    for (let i = 0; i < N; i++) {
-      // Fresh upgrade room each time (reset weapon level).
-      world.player.weapons[0]!.level = 1;
-      const result = openChest(world);
-      counts[result.rolls as 1 | 3 | 5]++;
-    }
-    expect(counts[5] / N).toBeGreaterThan(0.002);
-    expect(counts[5] / N).toBeLessThan(0.006);
-    expect(counts[3] / N).toBeGreaterThan(0.03);
-    expect(counts[3] / N).toBeLessThan(0.043);
+    const at = (minute: number) => {
+      world.tick = minute * 60 * TICK_RATE;
+      return chestRolls(world);
+    };
+    expect(at(0)).toBe(1);
+    expect(at(5)).toBe(1);
+    expect(at(6)).toBe(2);
+    expect(at(12)).toBe(3);
+    expect(at(18)).toBe(4);
+    expect(at(24)).toBe(5);
+    expect(at(30)).toBe(5); // capped
   });
 
-  it('luck scales the 3/5 roll chances', () => {
+  it('luck can grant one extra power (capped at 5)', () => {
     const world = createRun({ seed: 321 });
-    world.player.stats.luck = 3;
-    world.player.weapons = [{ id: 'ofuda', level: 1, cooldown: 0, state: 0 }];
-    let multi = 0;
+    world.tick = 12 * 60 * TICK_RATE; // base 3
+    world.player.stats.luck = 1.5; // 50% chance of +1
+    let extra = 0;
     const N = 10000;
-    for (let i = 0; i < N; i++) {
-      world.player.weapons[0]!.level = 1;
-      if (openChest(world).rolls > 1) multi++;
-    }
-    // 3 × (0.004 + 0.036) = 12%
-    expect(multi / N).toBeGreaterThan(0.10);
-    expect(multi / N).toBeLessThan(0.14);
+    for (let i = 0; i < N; i++) if (chestRolls(world) === 4) extra++;
+    expect(extra / N).toBeGreaterThan(0.45);
+    expect(extra / N).toBeLessThan(0.55);
+    // At max time, luck can't push past 5.
+    world.tick = 30 * 60 * TICK_RATE;
+    world.player.stats.luck = 3;
+    for (let i = 0; i < 200; i++) expect(chestRolls(world)).toBe(5);
+  });
+
+  it('gold scales with elapsed time', () => {
+    const early = createRun({ seed: 7 });
+    early.player.weapons = [{ id: 'ofuda', level: 1, cooldown: 0, state: 0 }];
+    early.tick = 1 * 60 * TICK_RATE;
+    const late = createRun({ seed: 7 });
+    late.player.weapons = [{ id: 'ofuda', level: 1, cooldown: 0, state: 0 }];
+    late.tick = 20 * 60 * TICK_RATE;
+    expect(openChest(late).gold).toBeGreaterThan(openChest(early).gold);
   });
 
   it('evolution requires max weapon + partner passive + minute gate', () => {

@@ -18,7 +18,9 @@ import type { World } from './world';
  * the sunrise, exactly like the original's Reaper.
  */
 export function stepRun(world: World, input: TickInput): void {
-  if (world.gameOver || world.player.pendingLevelUps > 0) return;
+  // Sim freezes during a level-up draft and during a chest-opening reveal
+  // (both are dismissed by the UI or the headless bot).
+  if (world.gameOver || world.player.pendingLevelUps > 0 || world.chestReveal !== null) return;
 
   world.tick++;
   world.events.clear();
