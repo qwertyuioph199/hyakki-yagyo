@@ -416,12 +416,15 @@ export class Game {
       const affordable = this.save.gold >= def.unlockCost;
       const card = document.createElement('button');
       card.style.cssText =
-        `width:190px;padding:14px 10px;background:#16161f;border:2px solid ${unlocked ? '#e8a33d' : affordable ? '#5fd3c4' : '#3a3a45'};` +
+        `position:relative;width:200px;padding:0 0 12px;overflow:hidden;background:#16161f;border:2px solid ${unlocked ? '#e8a33d' : affordable ? '#5fd3c4' : '#3a3a45'};` +
         `color:#f2ead8;cursor:pointer;font-family:inherit;text-align:center;${unlocked || affordable ? '' : 'opacity:.55;'}`;
+      // Full-bleed AI portrait (falls back to a flat panel if absent).
+      const locked = !unlocked;
       card.innerHTML = `
-        <div style="color:#e8a33d;font-size:15px;margin-bottom:6px;">${def.name}</div>
-        <div style="font-size:11px;opacity:.85;min-height:44px;">${def.desc}</div>
-        ${unlocked ? '' : `<div style="margin-top:8px;font-size:12px;color:${affordable ? '#f5c542' : '#666'};">解放: ${def.unlockCost} 文</div>`}`;
+        <div style="height:230px;background:linear-gradient(rgba(11,11,18,0) 55%, #16161f), url(../assets/portraits/${id}.jpg) center top/cover no-repeat #0b0b12;${locked ? 'filter:grayscale(.8) brightness(.5);' : ''}"></div>
+        <div style="color:#e8a33d;font-size:16px;margin:-6px 0 6px;text-shadow:0 1px 3px #000;">${def.name}</div>
+        <div style="font-size:11px;opacity:.85;min-height:44px;padding:0 10px;">${def.desc}</div>
+        ${unlocked ? '' : `<div style="margin-top:6px;font-size:12px;color:${affordable ? '#f5c542' : '#666'};">解放: ${def.unlockCost} 文</div>`}`;
       card.onclick = () => {
         this.sfx.play('click');
         if (unlocked) {

@@ -52,11 +52,15 @@ function paintOverride(ctx: PainterCtx, img: HTMLImageElement, entry: AtlasEntry
   const dh = img.naturalHeight * s;
   ctx.drawImage(img, (entry.w - dw) / 2, (entry.h - dh) / 2, dw, dh);
   ctx.imageSmoothingEnabled = false;
-  // Preserve the white hit-flash convention (enemy's last frame).
+  // Preserve the hit-flash convention (enemy's last frame), but as a
+  // partial white tint so the detailed art stays recognizable when hit
+  // (a full white silhouette turns grouped enemies into a white blob).
   if (isEnemyId(entry.id) && frame === entry.frames - 1) {
     ctx.globalCompositeOperation = 'source-atop';
+    ctx.globalAlpha = 0.62;
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, entry.w, entry.h);
+    ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
   }
 }

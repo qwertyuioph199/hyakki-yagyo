@@ -6,7 +6,7 @@ import type { World } from '../game/sim/world';
 
 const WEAPON_MAX = 6;
 const PASSIVE_MAX = 6;
-const SLOT = 30;
+const SLOT = 42;
 
 /**
  * DOM overlay HUD: XP bar, run timer, level, HP bar, gold/kills, and the
@@ -35,24 +35,26 @@ export class Hud {
     this.el = document.createElement('div');
     this.el.innerHTML = `
       <style>
+        /* Fully transparent HUD — no opaque panels; legibility comes from
+           shadows/glows/faint borders so the game view shows through. */
         .hy-hud { position:absolute; inset:0; pointer-events:none; font-family:Consolas,'Yu Gothic',monospace; }
-        .hy-xpbar { position:absolute; top:0; left:0; right:0; height:16px; background:#0d0d14; border-bottom:2px solid #000; }
-        .hy-xpfill { height:100%; width:0%; background:linear-gradient(#6fc0ee,#4aa3d8); transition:width .12s; box-shadow:0 0 6px rgba(74,163,216,.6); }
-        .hy-level { position:absolute; top:1px; right:10px; color:#f5c542; font-size:12px; font-weight:bold; text-shadow:0 1px 2px #000; }
-        .hy-timer { position:absolute; top:22px; left:50%; transform:translateX(-50%); color:#f2ead8; font-size:24px; letter-spacing:.05em; text-shadow:0 2px 0 #000,0 0 8px rgba(0,0,0,.8); }
-        .hy-inv { position:absolute; top:24px; left:10px; display:flex; flex-direction:column; gap:4px; }
-        .hy-row { display:flex; gap:3px; }
-        .hy-slot { position:relative; width:${SLOT}px; height:${SLOT}px; background:rgba(13,13,20,.72); border:1px solid #2a2a38; border-radius:3px; }
-        .hy-slot.pass { border-color:#3a3550; }
-        .hy-slot canvas { position:absolute; inset:0; margin:auto; image-rendering:pixelated; }
-        .hy-lv { position:absolute; right:1px; bottom:0; font-size:9px; color:#f5c542; text-shadow:0 1px 1px #000,1px 0 1px #000; }
+        .hy-xpbar { position:absolute; top:0; left:0; right:0; height:18px; background:rgba(13,13,20,.35); border-bottom:2px solid rgba(0,0,0,.5); }
+        .hy-xpfill { height:100%; width:0%; background:linear-gradient(#7fccf5,#4aa3d8); transition:width .12s; box-shadow:0 0 10px rgba(74,163,216,.8); }
+        .hy-level { position:absolute; top:2px; right:14px; color:#f5c542; font-size:17px; font-weight:bold; text-shadow:0 1px 3px #000,0 0 5px #000; }
+        .hy-timer { position:absolute; top:26px; left:50%; transform:translateX(-50%); color:#f2ead8; font-size:32px; letter-spacing:.06em; text-shadow:0 2px 0 #000,0 0 12px rgba(0,0,0,.95); }
+        .hy-inv { position:absolute; top:30px; left:14px; display:flex; flex-direction:column; gap:7px; }
+        .hy-row { display:flex; gap:6px; }
+        .hy-slot { position:relative; width:${SLOT}px; height:${SLOT}px; border:1px solid rgba(232,163,61,.22); border-radius:5px; }
+        .hy-slot.pass { border-color:rgba(138,111,201,.22); }
+        .hy-slot canvas { position:absolute; inset:0; margin:auto; image-rendering:pixelated; filter:drop-shadow(0 0 2px #000) drop-shadow(0 1px 1px #000); }
+        .hy-lv { position:absolute; right:2px; bottom:0; font-size:14px; font-weight:bold; color:#f5c542; text-shadow:0 1px 2px #000,1px 0 2px #000,-1px 0 2px #000,0 -1px 2px #000; }
         .hy-lv.max { color:#5fd3c4; }
-        .hy-botbar { position:absolute; left:0; right:0; bottom:0; display:flex; align-items:flex-end; justify-content:space-between; padding:0 12px 10px; }
-        .hy-hpwrap { width:220px; }
-        .hy-hpbar { position:relative; width:100%; height:14px; background:#0d0d14; border:1px solid #000; box-shadow:0 1px 3px rgba(0,0,0,.6); }
-        .hy-hpfill { height:100%; width:100%; background:linear-gradient(#e05555,#c23a3a); transition:width .1s; }
-        .hy-hptext { position:absolute; inset:0; text-align:center; color:#fff; font-size:10px; line-height:14px; text-shadow:0 1px 1px #000; }
-        .hy-stats { color:#f2ead8; font-size:13px; text-align:right; text-shadow:0 1px 2px #000; line-height:1.5; }
+        .hy-botbar { position:absolute; left:0; right:0; bottom:0; display:flex; align-items:flex-end; justify-content:space-between; padding:0 18px 14px; }
+        .hy-hpwrap { width:280px; }
+        .hy-hpbar { position:relative; width:100%; height:20px; background:rgba(13,13,20,.4); border:1px solid rgba(0,0,0,.6); border-radius:3px; }
+        .hy-hpfill { height:100%; width:100%; background:linear-gradient(#ec7373,#c23a3a); transition:width .1s; }
+        .hy-hptext { position:absolute; inset:0; text-align:center; color:#fff; font-size:14px; font-weight:bold; line-height:20px; text-shadow:0 1px 2px #000,0 0 4px #000; }
+        .hy-stats { color:#f2ead8; font-size:19px; text-align:right; text-shadow:0 1px 3px #000,0 0 5px #000; line-height:1.5; }
         .hy-stats .g { color:#f5c542; }
         .hy-stats .k { color:#9fb8c9; }
       </style>

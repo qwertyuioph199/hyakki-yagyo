@@ -8,7 +8,7 @@ import { Ev } from '../sim/events';
 import { collectLevels } from '../sim/weaponSystem';
 import { PickupKind, ProjKind, type World } from '../sim/world';
 
-const PAL_BAR_BACK = '#000000cc';
+const PAL_BAR_BACK = '#00000073';
 const PAL_BAR_HP = PAL.hpRed;
 const PAL_BAR_BOSS = PAL.violet;
 
@@ -162,13 +162,13 @@ export class RunPresenter {
       const heroFrame = atlas.frame(world.charDef.sprite, moving ? (world.tick >> 3) & 1 : 0);
       r.blit(heroFrame, heroX, heroY);
     }
-    r.barWorld(heroX, heroY + 16, 26, 3, p.hp / p.stats.maxHp, PAL_BAR_BACK, PAL_BAR_HP);
+    r.barWorld(heroX, heroY + 18, 30, 4, p.hp / p.stats.maxHp, PAL_BAR_BACK, PAL_BAR_HP);
 
     // Boss HP bars.
     for (let i = 0; i < world.enemies.count; i++) {
       const e = world.enemies.items[i]!;
       if (e.boss && e.maxHp < 100000) {
-        r.barWorld(e.x, e.y - e.radius - 8, 36, 4, e.hp / e.maxHp, PAL_BAR_BACK, PAL_BAR_BOSS);
+        r.barWorld(e.x, e.y - e.radius - 10, 44, 5, e.hp / e.maxHp, PAL_BAR_BACK, PAL_BAR_BOSS);
       }
     }
 
