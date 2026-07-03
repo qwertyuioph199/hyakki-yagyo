@@ -29,8 +29,8 @@ export const ENEMIES = {
   oni: { name: '鬼', sprite: 'enemy_oni', hp: 900, speed: 55, damage: 32, radius: 16, xp: 25, knockbackResist: 0.6 },
   // --- minibosses (wave `boss` field; drop a chest). Fast enough to stay
   // on the player — VS elites are pushers, not stragglers.
-  gashadokuro: { name: 'がしゃどくろ', sprite: 'boss_gashadokuro', hp: 900, speed: 126, damage: 20, radius: 24, xp: 50, knockbackResist: 1 },
-  shuten: { name: '酒呑童子', sprite: 'boss_shuten', hp: 2600, speed: 128, damage: 55, radius: 22, xp: 100, knockbackResist: 1 },
+  gashadokuro: { name: 'がしゃどくろ', sprite: 'boss_gashadokuro', hp: 900, speed: 120, damage: 20, radius: 24, xp: 50, knockbackResist: 1 },
+  shuten: { name: '酒呑童子', sprite: 'boss_shuten', hp: 2600, speed: 121, damage: 55, radius: 22, xp: 100, knockbackResist: 1 },
   // --- the dawn sweeper (minute 30, unkillable — VS Reaper mirror)
   akatsuki: { name: '夜明けの光', sprite: 'boss_akatsuki', hp: 655350, speed: 160, damage: 9999, radius: 20, xp: 0, knockbackResist: 1 },
 } as const satisfies Record<string, EnemyDef>;

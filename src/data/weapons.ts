@@ -118,7 +118,7 @@ export const WEAPONS = {
     desc: '身を守る霊場。踏み入る妖を灼く。',
     behavior: 'aura',
     sprite: 'fx_kekkai',
-    baseDamage: 5,
+    baseDamage: 7,
     cooldown: 1.3,
     amount: 1,
     pierce: Number.MAX_SAFE_INTEGER,
