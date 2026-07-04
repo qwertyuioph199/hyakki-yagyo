@@ -96,16 +96,63 @@ export class DraftUi {
     }
   }
 
+  private statPanel(): string {
+    const w = this.world!;
+    const p = w.player;
+    const s = p.stats;
+    const pct = (v: number) => `${v >= 1 ? '+' : ''}${Math.round((v - 1) * 100)}%`;
+    const rows = ([
+      ['レベル', `${p.level}`],
+      ['最大HP', `${Math.round(s.maxHp)}`],
+      ['与ダメージ', pct(s.might)],
+      ['攻撃速度', `${Math.round((1 - s.cooldown) * 100)}%`],
+      ['攻撃範囲', pct(s.area)],
+      ['弾速', pct(s.speed)],
+      ['効果時間', pct(s.duration)],
+      ['投射物', `+${s.amount}`],
+      ['移動速度', pct(s.moveSpeed)],
+      ['取得範囲', `+${Math.round((s.magnet / 40 - 1) * 100)}%`],
+      ['毎秒回復', `${Math.round(s.recovery * 10) / 10}`],
+      ['防御', `${s.armor}`],
+      ['運', pct(s.luck)],
+      ['経験値', pct(s.growth)],
+      ['金', pct(s.greed)],
+      ['呪い', pct(s.curse)],
+    ] as [string, string][]).filter((r) => r[1] !== '');
+    const rowHtml = rows
+      .map(
+        ([k, v]) =>
+          `<div style="display:flex;justify-content:space-between;gap:14px;padding:3px 0;border-bottom:1px solid #ffffff10;"><span style="color:#9fb8c9;">${k}</span><span style="color:#f2ead8;">${v}</span></div>`,
+      )
+      .join('');
+    const weap = p.weapons
+      .map((x) => `${WEAPONS[x.id as WeaponId]?.name ?? x.id} Lv${x.level}`)
+      .join(' / ');
+    const pass = p.passives.map((x) => `${PASSIVES[x.id as PassiveId]?.name ?? x.id} Lv${x.level}`).join(' / ');
+    return `
+      <div style="width:250px;text-align:left;background:linear-gradient(rgba(22,22,30,.85),rgba(13,13,20,.85));border:1px solid #ffffff18;border-radius:8px;padding:16px 18px;box-shadow:0 4px 18px rgba(0,0,0,.5);">
+        <div style="color:#5fd3c4;letter-spacing:.2em;font-size:16px;margin-bottom:10px;text-align:center;">ステータス</div>
+        <div style="font-size:13px;">${rowHtml}</div>
+        <div style="margin-top:12px;font-size:11px;color:#9fb8c9;">武器</div>
+        <div style="font-size:12px;color:#e8a33d;line-height:1.5;">${weap || '—'}</div>
+        <div style="margin-top:8px;font-size:11px;color:#9fb8c9;">護符</div>
+        <div style="font-size:12px;color:#8a6fc9;line-height:1.5;">${pass || '—'}</div>
+      </div>`;
+  }
+
   private render(draft: DraftChoice[]): void {
     const w = this.world!;
     const s = w.player.stats;
     const accent = this.banishMode ? '#b03a3a' : '#e8a33d';
     this.el.innerHTML = `
-      <div style="text-align:center;">
-        <h2 style="color:${accent};letter-spacing:.35em;font-size:30px;margin-bottom:6px;text-shadow:0 2px 8px #000;">力を選べ</h2>
-        <div style="color:#9fb8c9;font-size:14px;min-height:20px;margin-bottom:16px;" class="hy-banish-hint"></div>
-        <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;" class="hy-cards"></div>
-        <div style="margin-top:22px;display:flex;gap:14px;justify-content:center;" class="hy-tools"></div>
+      <div style="display:flex;align-items:center;gap:34px;">
+        <div style="text-align:center;">
+          <h2 style="color:${accent};letter-spacing:.35em;font-size:30px;margin-bottom:6px;text-shadow:0 2px 8px #000;">力を選べ</h2>
+          <div style="color:#9fb8c9;font-size:14px;min-height:20px;margin-bottom:16px;" class="hy-banish-hint"></div>
+          <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;max-width:720px;" class="hy-cards"></div>
+          <div style="margin-top:22px;display:flex;gap:14px;justify-content:center;" class="hy-tools"></div>
+        </div>
+        ${this.statPanel()}
       </div>`;
     const cards = this.el.querySelector('.hy-cards')!;
     const tools = this.el.querySelector('.hy-tools')!;

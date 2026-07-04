@@ -7,14 +7,16 @@ import { PickupKind, type World } from './world';
 /**
  * Wave-table interpreter (MECHANICS.md §2):
  * - Each minute reads its WaveDef row (last row repeats past 30 for overtime).
- * - Every `interval` ticks, if alive < minAlive × curse, spawn a batch to
- *   close 1/4 of the deficit (spawn pressure ramps instead of popping).
+ * - Every `interval` ticks, if alive < minAlive × curse × DENSITY, spawn a
+ *   batch closing half the deficit (fast fill; pressure ramps, not pops).
  * - Minute boundaries fire one-shot swarm/boss events.
  * - Enemies farther than DESPAWN_RADIUS teleport back onto the spawn ring
  *   (VS's recycling trick — the horde never falls behind).
  */
 const DAWN_TICK = 30 * 60 * TICK_RATE; // 30:00 — tick 108,000
 const SWEEPER_INTERVAL = 8 * TICK_RATE;
+/** Global alive-count multiplier on every wave floor (denser swarm feel). */
+const DENSITY = 1.12;
 /** Ticks between field drops (coin/food/utility near the player). */
 const FIELD_DROP_INTERVAL = 40 * TICK_RATE;
 
@@ -96,10 +98,12 @@ export function spawnSystem(world: World): void {
     world.spawnTimer--;
   } else {
     world.spawnTimer = wave.interval;
-    const target = Math.round(wave.minAlive * world.player.stats.curse);
+    const target = Math.round(wave.minAlive * world.player.stats.curse * DENSITY);
     const deficit = target - world.enemies.count;
     if (deficit > 0) {
-      const batch = Math.max(1, Math.ceil(deficit / 4));
+      // Fill toward the floor quickly (half the deficit per batch, capped so
+      // a big jump never spikes a single tick).
+      const batch = Math.max(2, Math.min(28, Math.ceil(deficit / 2)));
       for (let i = 0; i < batch; i++) {
         if (!spawnEnemyAt(world, world.rng.pick(wave.pool) as EnemyId, world.rng.float(0, Math.PI * 2))) break;
       }

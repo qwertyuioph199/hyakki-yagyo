@@ -12,6 +12,11 @@ const PAL_BAR_BACK = '#00000073';
 const PAL_BAR_HP = PAL.hpRed;
 const PAL_BAR_BOSS = PAL.violet;
 
+/** Display-only scale for actor sprites (visibility; hitboxes unchanged). */
+const ENEMY_SCALE = 1.4;
+const BOSS_SCALE = 1.5;
+const PLAYER_SCALE = 1.45;
+
 /**
  * Draws the world and owns all presentation-only state (floating damage
  * numbers, death poofs). Reads the sim, never mutates it.
@@ -159,7 +164,7 @@ export class RunPresenter {
       const phase = t * 0.28 + e.uid * 1.7;
       const bob = Math.sin(phase) * 2.2 - (e.hitFlash > 0 ? 3 : 0);
       const sway = Math.sin(phase) * 0.05;
-      r.blitMotion(frame, ex, ey, p.x < e.x, bob, e.boss ? sway * 0.4 : sway);
+      r.blitMotion(frame, ex, ey, p.x < e.x, bob, e.boss ? sway * 0.4 : sway, e.boss ? BOSS_SCALE : ENEMY_SCALE);
     }
 
     // Player (blink while invulnerable) + VS-style HP bar under the feet.
@@ -172,7 +177,7 @@ export class RunPresenter {
       const heroFrame = atlas.frame(world.charDef.sprite, moving ? (world.tick >> 3) & 1 : 0);
       const bob = moving ? Math.abs(Math.sin(t * 0.45)) * -3 : Math.sin(t * 0.12) * 1;
       const sway = moving ? Math.sin(t * 0.45) * 0.04 : 0;
-      r.blitMotion(heroFrame, heroX, heroY, p.dirX < 0, bob, sway);
+      r.blitMotion(heroFrame, heroX, heroY, p.dirX < 0, bob, sway, PLAYER_SCALE);
     }
     r.barWorld(heroX, heroY + 18, 30, 4, p.hp / p.stats.maxHp, PAL_BAR_BACK, PAL_BAR_HP);
 

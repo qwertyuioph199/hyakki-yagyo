@@ -98,10 +98,19 @@ export class Renderer {
    * call — used only for the ~hundreds of actors (enemies + player), well
    * within budget.
    */
-  blitMotion(frame: SpriteFrame, wx: number, wy: number, flipX: boolean, bobY: number, rot: number): void {
+  blitMotion(
+    frame: SpriteFrame,
+    wx: number,
+    wy: number,
+    flipX: boolean,
+    bobY: number,
+    rot: number,
+    scale = 1,
+  ): void {
     const cx = (wx - this.camX) | 0;
     const cy = (wy - this.camY + bobY) | 0;
-    if (cx + frame.w < -CULL_MARGIN || cy + frame.h < -CULL_MARGIN || cx - frame.w > this.viewW + CULL_MARGIN || cy - frame.h > this.viewH + CULL_MARGIN) {
+    const half = Math.max(frame.w, frame.h) * scale;
+    if (cx + half < -CULL_MARGIN || cy + half < -CULL_MARGIN || cx - half > this.viewW + CULL_MARGIN || cy - half > this.viewH + CULL_MARGIN) {
       this.culled++;
       return;
     }
@@ -109,7 +118,7 @@ export class Renderer {
     ctx.save();
     ctx.translate(cx, cy);
     if (rot !== 0) ctx.rotate(rot);
-    if (flipX) ctx.scale(-1, 1);
+    if (scale !== 1 || flipX) ctx.scale(flipX ? -scale : scale, scale);
     ctx.drawImage(this._atlas!.source, frame.sx, frame.sy, frame.w, frame.h, -frame.ox, -frame.oy, frame.w, frame.h);
     ctx.restore();
     this.drawCalls++;

@@ -10,7 +10,7 @@ import type { World } from '../src/game/sim/world';
  * then passives.
  */
 const DANGER_RADIUS = 300;
-const GEM_PULL_RADIUS = 220;
+const GEM_PULL_RADIUS = 420;
 
 const scratchInput: TickInput = { moveX: 0, moveY: 0 };
 
@@ -30,45 +30,58 @@ export function botInput(world: World): TickInput {
     fy += dy * w;
   }
 
-  // When not fleeing hard: pull toward chests/pickups (strong) and gems (weak).
-  const danger = Math.hypot(fx, fy);
-  if (danger < 0.004) {
-    let bestPickup = Infinity;
-    let px = 0;
-    let py = 0;
-    for (let i = 0; i < world.pickups.count; i++) {
-      const item = world.pickups.items[i]!;
-      const dx = item.x - p.x;
-      const dy = item.y - p.y;
-      const d2 = dx * dx + dy * dy;
-      if (d2 < bestPickup) {
-        bestPickup = d2;
-        px = dx;
-        py = dy;
-      }
+  // Normalize the danger vector so gem/pickup attraction is on a comparable
+  // scale: a real player weaves through the swarm to vacuum XP rather than
+  // just fleeing. Danger flee gets the larger share; loot pulls it around.
+  const dmag = Math.hypot(fx, fy);
+  if (dmag > 1e-9) {
+    fx = (fx / dmag) * 1.0;
+    fy = (fy / dmag) * 1.0;
+  }
+
+  // Always pull toward the nearest chest/food/utility pickup (strong).
+  let bestPickup = Infinity;
+  let px = 0;
+  let py = 0;
+  for (let i = 0; i < world.pickups.count; i++) {
+    const item = world.pickups.items[i]!;
+    const dx = item.x - p.x;
+    const dy = item.y - p.y;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < bestPickup) {
+      bestPickup = d2;
+      px = dx;
+      py = dy;
     }
-    if (bestPickup < Infinity) {
-      const d = Math.sqrt(bestPickup) || 1;
-      fx += (px / d) * 0.01;
-      fy += (py / d) * 0.01;
-    } else {
-      let best = GEM_PULL_RADIUS * GEM_PULL_RADIUS;
-      let gx = 0;
-      let gy = 0;
-      for (let i = 0; i < world.gems.count; i++) {
-        const g = world.gems.items[i]!;
-        const dx = g.x - p.x;
-        const dy = g.y - p.y;
-        const d2 = dx * dx + dy * dy;
-        if (d2 < best) {
-          best = d2;
-          gx = dx;
-          gy = dy;
-        }
-      }
-      fx += gx * 0.00001;
-      fy += gy * 0.00001;
+  }
+  if (bestPickup < Infinity) {
+    const d = Math.sqrt(bestPickup) || 1;
+    fx += (px / d) * 0.7;
+    fy += (py / d) * 0.7;
+  }
+
+  // Always drift toward the nearest gem cluster (moderate) so the bot levels
+  // up in a dense swarm instead of leaving XP behind.
+  let best = GEM_PULL_RADIUS * GEM_PULL_RADIUS;
+  let gx = 0;
+  let gy = 0;
+  let found = false;
+  for (let i = 0; i < world.gems.count; i++) {
+    const g = world.gems.items[i]!;
+    const dx = g.x - p.x;
+    const dy = g.y - p.y;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < best) {
+      best = d2;
+      gx = dx;
+      gy = dy;
+      found = true;
     }
+  }
+  if (found) {
+    const d = Math.sqrt(best) || 1;
+    fx += (gx / d) * 0.5;
+    fy += (gy / d) * 0.5;
   }
 
   const len = Math.hypot(fx, fy);
