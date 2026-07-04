@@ -70,6 +70,7 @@ export class Game {
       this.renderer.setAtlas(buildAtlas(spritesWithOverrides(ov)));
       this.hud?.setAtlas(this.renderer.atlas);
       this.chest?.setAtlas(this.renderer.atlas);
+      this.draft?.setAtlas(this.renderer.atlas);
       // eslint-disable-next-line no-console
       console.log(`[hyakki] AI sprite overrides loaded: ${[...ov.keys()].join(', ')}`);
     });
@@ -135,7 +136,7 @@ export class Game {
     this.world = createRun({ seed, characterId, stageId, powerUpBonuses: powerUpBonuses(this.save.powerUps) });
     this.presenter = new RunPresenter(this.renderer, this.camera);
     this.hud = new Hud(this.uiRoot, this.renderer.atlas);
-    this.draft = new DraftUi(this.uiRoot);
+    this.draft = new DraftUi(this.uiRoot, this.renderer.atlas);
     this.chest = new ChestUi(this.uiRoot, this.renderer.atlas, (id) => this.sfx.play(id));
     this.resultShown = false;
     this.paused = false;
