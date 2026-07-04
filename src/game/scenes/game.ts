@@ -15,11 +15,13 @@ import { Input } from '../../engine/input';
 import { GameLoop, TICK_RATE } from '../../engine/loop';
 import { Renderer } from '../../engine/renderer';
 import { PerfHud } from '../../debug/perfHud';
-import { buyRank, nextRankPrice, powerUpBonuses } from '../meta/shop';
+import { buyRank, nextRankPrice, powerUpBonuses, type PowerUpRanks } from '../meta/shop';
+import type { Stats } from '../../data/types';
 import { exportSave, importSave, loadSave, persistSave, type SaveData } from '../meta/save';
 import { RunPresenter } from '../presentation/renderRun';
 import { Ev } from '../sim/events';
 import { stepRun } from '../sim/step';
+import { botInput, botResolveDrafts } from '../../../bot/policy';
 import { createRun, type World } from '../sim/world';
 import { ChestUi } from '../../ui/chest';
 import { DraftUi } from '../../ui/draft';
@@ -50,6 +52,9 @@ export class Game {
   private perf: PerfHud;
   private paused = false;
   private resultShown = false;
+  /** AI spectate mode: the bot policy drives the run; any keypress takes over. */
+  private autoplay = false;
+  private autoIndicator: HTMLDivElement | null = null;
   private simMs = 0;
   private lastFrame = performance.now();
   /** Per-run bestiary tally, merged into the save at run end. */
@@ -128,12 +133,15 @@ export class Game {
 
   // ---------- run lifecycle ----------
 
-  private startRun(characterId: CharacterId, stageId: StageId): void {
+  private startRun(characterId: CharacterId, stageId: StageId, autoplay = false): void {
     this.disposeRunUi();
+    this.stopAutoplay();
     this.runBestiary.clear();
     this.runEvolutions = 0;
     const seed = (0x9e3779b9 ^ (this.save.stats.totalRuns * 0x85ebca6b)) >>> 0;
-    this.world = createRun({ seed, characterId, stageId, powerUpBonuses: powerUpBonuses(this.save.powerUps) });
+    // Spectate runs get a generous build so the AI reliably reaches dawn.
+    const bonuses = autoplay ? spectatorBonuses() : powerUpBonuses(this.save.powerUps);
+    this.world = createRun({ seed, characterId, stageId, powerUpBonuses: bonuses });
     this.presenter = new RunPresenter(this.renderer, this.camera);
     this.hud = new Hud(this.uiRoot, this.renderer.atlas);
     this.draft = new DraftUi(this.uiRoot, this.renderer.atlas);
@@ -143,6 +151,31 @@ export class Game {
     this.screen.style.display = 'none';
     this.music.start();
     this.music.setIntensity(0.1);
+    if (autoplay) this.startAutoplay();
+  }
+
+  /** Start a spectate run (onmyoji, 森, AI-driven) — used by #auto and the title button. */
+  startAutoRun(): void {
+    this.startRun('onmyoji', 'mori', true);
+  }
+
+  private startAutoplay(): void {
+    this.autoplay = true;
+    if (!this.autoIndicator) {
+      const el = document.createElement('div');
+      el.style.cssText =
+        'position:absolute;top:44px;left:50%;transform:translateX(-50%);pointer-events:none;z-index:12;' +
+        'color:#5fd3c4;font:13px Consolas,"Yu Gothic",monospace;letter-spacing:.1em;text-shadow:0 1px 3px #000,0 0 6px #000;opacity:.9;';
+      el.textContent = '▶ AI観戦中 — WASD/矢印キーで操作を引き継ぐ';
+      this.uiRoot.appendChild(el);
+      this.autoIndicator = el;
+    }
+    this.autoIndicator.style.display = 'block';
+  }
+
+  private stopAutoplay(): void {
+    this.autoplay = false;
+    if (this.autoIndicator) this.autoIndicator.style.display = 'none';
   }
 
   private disposeRunUi(): void {
@@ -176,6 +209,7 @@ export class Game {
     const earned = evaluateAchievements(this.save);
     persistSave(this.save);
     this.music.stop();
+    this.stopAutoplay();
     this.showResults(w, earned);
   }
 
@@ -183,9 +217,21 @@ export class Game {
     // Read one-shot keys BEFORE sample() clears the pressed set.
     const escPressed = this.input.wasPressed('Escape');
     const f3Pressed = this.input.wasPressed('F3');
+    const movePressed =
+      this.input.isDown('KeyW') ||
+      this.input.isDown('KeyA') ||
+      this.input.isDown('KeyS') ||
+      this.input.isDown('KeyD') ||
+      this.input.isDown('ArrowUp') ||
+      this.input.isDown('ArrowDown') ||
+      this.input.isDown('ArrowLeft') ||
+      this.input.isDown('ArrowRight');
     const snapshot = this.input.sample();
     if (f3Pressed) this.perf.toggle();
     if (!this.world || this.resultShown) return;
+
+    // In spectate mode, the first real move input hands control to the human.
+    if (this.autoplay && movePressed) this.stopAutoplay();
 
     if (escPressed && !this.world.gameOver) {
       this.paused = !this.paused;
@@ -196,7 +242,12 @@ export class Game {
 
     const t0 = performance.now();
     const tickBefore = this.world.tick;
-    stepRun(this.world, snapshot);
+    if (this.autoplay) {
+      stepRun(this.world, botInput(this.world));
+      botResolveDrafts(this.world); // auto-pick draft + dismiss chest reveal
+    } else {
+      stepRun(this.world, snapshot);
+    }
     // The sim freezes during drafts/game-over without clearing its event
     // buffer — draining it again would replay the same SFX every tick.
     if (this.world.tick !== tickBefore) {
@@ -341,6 +392,7 @@ export class Game {
       </div>`;
     const menu = this.screen.querySelector('.hy-menu')!;
     menu.appendChild(this.btn('出撃', () => this.showCharSelect()));
+    menu.appendChild(this.btn('AI観戦', () => this.startAutoRun(), '#5fd3c4'));
     menu.appendChild(this.btn('強化(護符)', () => this.showShop(), '#5fd3c4'));
     menu.appendChild(this.btn(`実績 (${this.save.achievements.length}/${ACHIEVEMENT_IDS.length})`, () => this.showAchievements(), '#f5c542'));
     menu.appendChild(this.btn('図鑑', () => this.showBestiary(), '#8a6fc9'));
@@ -651,6 +703,20 @@ export class Game {
   }
 }
 
+/** Meta bonuses for a spectate run: every PowerUp maxed + extra survivability
+ *  so the AI reliably rides the whole 30 minutes to the dawn victory. */
+function spectatorBonuses(): Partial<Stats> {
+  const ranks: PowerUpRanks = {};
+  for (const id of POWERUP_IDS) ranks[id] = POWERUPS[id].maxRank;
+  const b = powerUpBonuses(ranks);
+  b.armor = (b.armor ?? 0) + 15;
+  b.maxHp = (b.maxHp ?? 0) + 1.5;
+  b.recovery = (b.recovery ?? 0) + 4;
+  b.might = (b.might ?? 0) + 0.5;
+  return b;
+}
+
 export function startGame(canvas: HTMLCanvasElement, uiRoot: HTMLElement): void {
-  new Game(canvas, uiRoot);
+  const game = new Game(canvas, uiRoot);
+  if (location.hash === '#auto') game.startAutoRun();
 }

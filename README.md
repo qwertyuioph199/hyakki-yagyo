@@ -31,6 +31,9 @@ npm run build      # 型検査+本番ビルド (dist/)
 npm run bot        # バランス掃引(キャラ×シード×投資、ゲート付き)
 ```
 
+**AI観戦モード**: `/play/#auto` を開くか、タイトルの「AI観戦」ボタン → AIが夜明け(30分)まで自動プレイ。
+WASD/矢印キーで途中から操作を引き継げる(可視タブなら60fps実時間)。
+
 デバッグURL: `/play/#debug`(perf HUD)・`/play/#perf`(負荷ゲート)・`/play/#sprites`(アトラス一覧)。
 ゲーム内チート: `window.__hyakki.setTimeScale(8)`。
 
