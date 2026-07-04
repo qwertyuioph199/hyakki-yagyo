@@ -91,6 +91,30 @@ export class Renderer {
     this.drawCalls++;
   }
 
+  /**
+   * Blit with procedural motion: a vertical bounce (bobY), a small sway
+   * rotation (rot, radians), and a horizontal facing flip. Pivots around the
+   * sprite's anchor so rotation/flip look natural. Costs a save/restore per
+   * call — used only for the ~hundreds of actors (enemies + player), well
+   * within budget.
+   */
+  blitMotion(frame: SpriteFrame, wx: number, wy: number, flipX: boolean, bobY: number, rot: number): void {
+    const cx = (wx - this.camX) | 0;
+    const cy = (wy - this.camY + bobY) | 0;
+    if (cx + frame.w < -CULL_MARGIN || cy + frame.h < -CULL_MARGIN || cx - frame.w > this.viewW + CULL_MARGIN || cy - frame.h > this.viewH + CULL_MARGIN) {
+      this.culled++;
+      return;
+    }
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.translate(cx, cy);
+    if (rot !== 0) ctx.rotate(rot);
+    if (flipX) ctx.scale(-1, 1);
+    ctx.drawImage(this._atlas!.source, frame.sx, frame.sy, frame.w, frame.h, -frame.ox, -frame.oy, frame.w, frame.h);
+    ctx.restore();
+    this.drawCalls++;
+  }
+
   /** Blit with transient alpha (used sparingly — alpha changes break batching). */
   blitAlpha(frame: SpriteFrame, wx: number, wy: number, alpha: number): void {
     this.ctx.globalAlpha = alpha;

@@ -141,7 +141,10 @@ export class RunPresenter {
       r.blit(atlas.frame(id, (world.tick >> 4) & 1), item.x, item.y);
     }
 
-    // Enemies (typeIdx → sprite id; last frame = hit flash).
+    // Enemies (typeIdx → sprite id; last frame = hit flash). Static art is
+    // brought to life with a per-actor bounce + sway, and each enemy turns
+    // to face the player. A fresh hit adds a brief upward pop.
+    const t = world.tick + alpha;
     for (let i = 0; i < world.enemies.count; i++) {
       const e = world.enemies.items[i]!;
       const def = ENEMY_LIST[e.typeIdx];
@@ -151,16 +154,25 @@ export class RunPresenter {
         e.hitFlash > 0
           ? atlas.frame(spriteId, animFrames)
           : atlas.frame(spriteId, ((world.tick + e.uid * 7) >> 3) % Math.max(1, animFrames));
-      r.blit(frame, e.px + (e.x - e.px) * alpha, e.py + (e.y - e.py) * alpha);
+      const ex = e.px + (e.x - e.px) * alpha;
+      const ey = e.py + (e.y - e.py) * alpha;
+      const phase = t * 0.28 + e.uid * 1.7;
+      const bob = Math.sin(phase) * 2.2 - (e.hitFlash > 0 ? 3 : 0);
+      const sway = Math.sin(phase) * 0.05;
+      r.blitMotion(frame, ex, ey, p.x < e.x, bob, e.boss ? sway * 0.4 : sway);
     }
 
     // Player (blink while invulnerable) + VS-style HP bar under the feet.
+    // Walk bounce when moving, gentle idle breathing otherwise; faces the
+    // last movement direction.
     const heroX = camX - this.camera.offsetX;
     const heroY = camY - this.camera.offsetY;
+    const moving = p.x !== p.px || p.y !== p.py;
     if (p.iframes === 0 || (world.tick & 3) < 2) {
-      const moving = p.x !== p.px || p.y !== p.py;
       const heroFrame = atlas.frame(world.charDef.sprite, moving ? (world.tick >> 3) & 1 : 0);
-      r.blit(heroFrame, heroX, heroY);
+      const bob = moving ? Math.abs(Math.sin(t * 0.45)) * -3 : Math.sin(t * 0.12) * 1;
+      const sway = moving ? Math.sin(t * 0.45) * 0.04 : 0;
+      r.blitMotion(heroFrame, heroX, heroY, p.dirX < 0, bob, sway);
     }
     r.barWorld(heroX, heroY + 18, 30, 4, p.hp / p.stats.maxHp, PAL_BAR_BACK, PAL_BAR_HP);
 

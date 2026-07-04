@@ -1,7 +1,7 @@
 {
   "name": "hyakki-yagyo",
   "private": true,
-  "version": "1.1.4",
+  "version": "1.1.5",
   "type": "module",
   "description": "HYAKKI YAGYO - a survivors-like where an onmyoji survives the yokai night parade until dawn. Zero runtime dependencies.",
   "scripts": {
